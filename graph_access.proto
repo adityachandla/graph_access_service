@@ -1,0 +1,26 @@
+syntax= "proto3";
+
+package graph_access_service;
+
+option go_package = "github.com/adityachandla/graph_access_service/generated";
+
+message AccessRequest {
+    int32 nodeId=1; // Source node id
+    int32 label=2;  // Edge label
+    bool incoming=3;// Is the edge outgoing or incoming
+}
+
+
+message AccessResponse {
+    repeated int32 neighbours=1; // List of Node ids for the neighbours
+    ResponseStatus status=2;
+    enum ResponseStatus {
+        NO_ERROR = 0;
+        UNSUPPORTED = 1;
+        SERVER_ERROR = 2;
+    }
+}
+
+service GraphAccess {
+    rpc GetNeighbours(AccessRequest) returns (AccessResponse) {};
+}
