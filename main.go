@@ -1,12 +1,13 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"net"
 
-	"github.com/adityachandla/graph_access_service/generated"
+	pb "github.com/adityachandla/graph_access_service/generated"
 	"google.golang.org/grpc"
 )
 
@@ -16,7 +17,17 @@ var (
 )
 
 type server struct {
-	generated.UnimplementedGraphAccessServer
+	pb.UnimplementedGraphAccessServer
+}
+
+func (s *server) GetNeighbours(ctx context.Context,
+	req *pb.AccessRequest) (*pb.AccessResponse, error) {
+	response := &pb.AccessResponse{
+		Neighbours: []uint32{1, 2, 3},
+		Status:     pb.AccessResponse_NO_ERROR,
+	}
+	log.Printf("Served request")
+	return response, nil
 }
 
 func main() {
@@ -26,7 +37,7 @@ func main() {
 		panic(err)
 	}
 	s := grpc.NewServer()
-	generated.RegisterGraphAccessServer(s, &server{})
+	pb.RegisterGraphAccessServer(s, &server{})
 	log.Printf("Server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("Unable to serve request: %v", err)
