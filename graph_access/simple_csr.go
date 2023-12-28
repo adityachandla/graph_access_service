@@ -23,7 +23,8 @@ type csrFetcher struct {
 	s3Util *s3_util.S3Service
 }
 
-func (f csrFetcher) Fetch(objectName string) *simpleCsrRepr {
+func (f csrFetcher) Fetch(objectName string) simpleCsrRepr {
+	log.Printf("Fetching %s\n", objectName)
 	fileBytes := f.s3Util.Fetch(objectName, s3_util.ByteRangeStart(0))
 	start := bin_util.ByteToUint(fileBytes[:4])
 	end := bin_util.ByteToUint(fileBytes[4:8])
@@ -34,7 +35,7 @@ func (f csrFetcher) Fetch(objectName string) *simpleCsrRepr {
 	//The memory layout of pair is same as edge so it is safe to
 	//do a typecast.
 	pairPtr := unsafe.Pointer(&pairs)
-	return &simpleCsrRepr{
+	return simpleCsrRepr{
 		startNodeId: start,
 		indices:     nodeIndices,
 		edges:       *(*[]edge)(pairPtr),
@@ -73,6 +74,7 @@ func (scsr *simpleCsrAccess) GetNeighbours(src, label uint32,
 		return []uint32{}, IncomingNotImplemented
 	}
 	objectName := scsr.getObjectWithNode(src)
+	log.Printf("The required node is present in %s\n", objectName)
 	csrRepr := scsr.lru.Get(objectName)
 	return csrRepr.getEdges(src, label), nil
 }
@@ -85,9 +87,9 @@ func (scsr *simpleCsrAccess) getObjectWithNode(src uint32) string {
 		if scsr.nodePaths[mid].contains(src) {
 			return scsr.nodePaths[mid].objectName
 		} else if scsr.nodePaths[mid].start > src {
-			start = mid - 1
+			end = mid - 1
 		} else {
-			end = mid + 1
+			start = mid + 1
 		}
 	}
 	panic(fmt.Errorf("%d not found in nodeRanges", src))
@@ -116,6 +118,7 @@ func InitializeSimpleCsrAccess(s3 *s3_util.S3Service) *simpleCsrAccess {
 	slices.SortFunc(nodePaths, nodeCmp)
 	return &simpleCsrAccess{
 		nodePaths: nodePaths,
+		lru:       caches.NewLRU(&csrFetcher{s3}, LRU_SIZE_FILES),
 	}
 }
 

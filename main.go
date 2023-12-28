@@ -26,6 +26,7 @@ type server struct {
 
 func (s *server) GetNeighbours(ctx context.Context,
 	req *pb.AccessRequest) (*pb.AccessResponse, error) {
+	log.Printf("Processing reqest %v\n", req)
 	neighbours, err := s.accessService.GetNeighbours(req.NodeId, req.Label, req.Incoming)
 	response := &pb.AccessResponse{Neighbours: neighbours}
 	if err != nil && err == graph_access.IncomingNotImplemented {
