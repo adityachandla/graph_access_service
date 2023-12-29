@@ -1,4 +1,4 @@
-package s3_util
+package s3util
 
 import (
 	"context"

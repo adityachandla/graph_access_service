@@ -8,8 +8,8 @@ import (
 	"net"
 
 	pb "github.com/adityachandla/graph_access_service/generated"
-	"github.com/adityachandla/graph_access_service/graph_access"
-	"github.com/adityachandla/graph_access_service/s3_util"
+	"github.com/adityachandla/graph_access_service/graphaccess"
+	"github.com/adityachandla/graph_access_service/s3util"
 	"google.golang.org/grpc"
 )
 
@@ -21,7 +21,7 @@ var (
 
 type server struct {
 	pb.UnimplementedGraphAccessServer
-	accessService graph_access.GraphAccess
+	accessService graphaccess.GraphAccess
 }
 
 func (s *server) GetNeighbours(ctx context.Context,
@@ -29,7 +29,7 @@ func (s *server) GetNeighbours(ctx context.Context,
 	log.Printf("Processing reqest %v\n", req)
 	neighbours, err := s.accessService.GetNeighbours(req.NodeId, req.Label, req.Incoming)
 	response := &pb.AccessResponse{Neighbours: neighbours}
-	if err != nil && err == graph_access.IncomingNotImplemented {
+	if err != nil && err == graphaccess.IncomingNotImplemented {
 		response.Status = pb.AccessResponse_UNSUPPORTED
 		return response, nil
 	}
@@ -43,8 +43,8 @@ func (s *server) GetNeighbours(ctx context.Context,
 
 func main() {
 	flag.Parse()
-	s3Util := s3_util.InitializeS3Service(*bucket)
-	simple_csr := graph_access.InitializeSimpleCsrAccess(s3Util)
+	s3Util := s3util.InitializeS3Service(*bucket)
+	simple_csr := graphaccess.InitializeSimpleCsrAccess(s3Util)
 	server := &server{accessService: simple_csr}
 	log.Println("Initialized the server")
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))

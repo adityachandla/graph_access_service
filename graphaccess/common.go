@@ -1,4 +1,4 @@
-package graph_access
+package graphaccess
 
 import "fmt"
 

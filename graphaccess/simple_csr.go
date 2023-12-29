@@ -1,4 +1,4 @@
-package graph_access
+package graphaccess
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 
 	"github.com/adityachandla/graph_access_service/bin_util"
 	"github.com/adityachandla/graph_access_service/caches"
-	"github.com/adityachandla/graph_access_service/s3_util"
+	s3_util "github.com/adityachandla/graph_access_service/s3util"
 )
 
 const LRU_SIZE_FILES = 5

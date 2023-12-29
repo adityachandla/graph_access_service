@@ -40,6 +40,7 @@ func (lru *LRU[K, V]) Get(key K) V {
 	val := lru.fetcher.Fetch(key)
 	valRef := lru.recencyQueue.AddToFront(val)
 	lru.mapping[key] = valRef
+	lru.revMapping[valRef] = key
 	//Size limit exceeded
 	if lru.recencyQueue.Size() > lru.maxSize {
 		toDeleteRef, err := lru.recencyQueue.PopBack()
@@ -92,10 +93,13 @@ func (ll *LinkedList[T]) MoveToFront(node *listNode[T]) {
 		//Already the first node
 		return
 	}
-	// Manage prev-next pointers
+	// Manage prev-next nodes' pointers
 	node.prev.next = node.next
 	if node.next != nil {
 		node.next.prev = node.prev
+	}
+	if ll.end == node {
+		ll.end = node.prev
 	}
 	//Move to front
 	node.prev = nil
