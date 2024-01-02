@@ -11,7 +11,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-type S3Service struct {
+type S3Service interface {
+	Fetch(objectName string, bRange byteRange) []byte
+	GetFilesInBucket() []string
+}
+
+type S3Impl struct {
 	client *s3.Client
 	bucket string
 }
@@ -28,15 +33,15 @@ func ByteRange(start, end uint32) byteRange {
 	return byteRange{start: start, end: end}
 }
 
-func InitializeS3Service(bucketName string) *S3Service {
+func InitializeS3Service(bucketName string) S3Service {
 	cfg, err := config.LoadDefaultConfig(context.TODO())
 	if err != nil {
 		panic(fmt.Errorf("Unable to initialize S3: %s", err))
 	}
-	return &S3Service{s3.NewFromConfig(cfg), bucketName}
+	return &S3Impl{s3.NewFromConfig(cfg), bucketName}
 }
 
-func (service *S3Service) GetFilesInBucket() []string {
+func (service *S3Impl) GetFilesInBucket() []string {
 	log.Printf("Fetching files in bucket %s\n", service.bucket)
 	listRequest := &s3.ListObjectsV2Input{
 		Bucket: aws.String(service.bucket),
@@ -60,7 +65,7 @@ func (service *S3Service) GetFilesInBucket() []string {
 	return keys
 }
 
-func (service *S3Service) getListResponse(
+func (service *S3Impl) getListResponse(
 	req *s3.ListObjectsV2Input) *s3.ListObjectsV2Output {
 	response, err := service.client.ListObjectsV2(context.TODO(), req)
 	if err != nil {
@@ -69,7 +74,7 @@ func (service *S3Service) getListResponse(
 	return response
 }
 
-func (service *S3Service) Fetch(objectName string, bRange byteRange) []byte {
+func (service *S3Impl) Fetch(objectName string, bRange byteRange) []byte {
 	var rangeField string
 	if bRange.end == 0 {
 		rangeField = fmt.Sprintf("bytes=%d-", bRange.start)

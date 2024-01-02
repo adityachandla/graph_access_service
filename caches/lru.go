@@ -1,6 +1,9 @@
 package caches
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 // This interface specifies how the cache is
 // supposed to fetch a key if it is not present
@@ -10,11 +13,11 @@ type Fetcher[K comparable, T any] interface {
 }
 
 type LRU[K comparable, V any] struct {
-	mapping      map[K]*listNode[V]
-	revMapping   map[*listNode[V]]K
-	recencyQueue *LinkedList[V]
-	fetcher      Fetcher[K, V] //This interface will fetch the
+	mapping      map[K]*listNode[K, V]
+	recencyQueue *LinkedList[K, V]
+	fetcher      Fetcher[K, V]
 	maxSize      int
+	lock         *sync.Mutex
 }
 
 func NewLRU[K comparable, V any](fetcher Fetcher[K, V], maxSize int) *LRU[K, V] {
@@ -22,60 +25,86 @@ func NewLRU[K comparable, V any](fetcher Fetcher[K, V], maxSize int) *LRU[K, V] 
 		panic("LRU maxSize should be >= 1")
 	}
 	return &LRU[K, V]{
-		mapping:      make(map[K]*listNode[V]),
-		revMapping:   make(map[*listNode[V]]K),
-		recencyQueue: NewLinkedList[V](),
+		mapping:      make(map[K]*listNode[K, V]),
+		recencyQueue: NewLinkedList[K, V](),
 		fetcher:      fetcher,
 		maxSize:      maxSize,
+		lock:         &sync.Mutex{},
 	}
 }
 
+// This function does not lock for the entire duration
+// because the fetch operation might be expensive.
+// As a result, it is possible that two goroutines might
+// call fetch on the same key.
 func (lru *LRU[K, V]) Get(key K) V {
-	if ref, ok := lru.mapping[key]; ok {
-		//Present in the map
-		lru.recencyQueue.MoveToFront(ref)
-		return ref.value
+	lru.lock.Lock()
+	defer lru.lock.Unlock()
+	if cached, ok := lru.getFromCache(key); ok {
+		return cached
 	}
-	//Not present in the map
+	// Not present in the map
+	// Do the fetch operation after releasing the lock.
+	lru.lock.Unlock()
 	val := lru.fetcher.Fetch(key)
-	valRef := lru.recencyQueue.AddToFront(val)
-	lru.mapping[key] = valRef
-	lru.revMapping[valRef] = key
-	//Size limit exceeded
+	lru.lock.Lock()
+	// Some other goroutine might have fetched this key in
+	// the mean time.
+	if cached, ok := lru.getFromCache(key); ok {
+		return cached
+	}
+	lru.addToCache(key, val)
 	if lru.recencyQueue.Size() > lru.maxSize {
-		toDeleteRef, err := lru.recencyQueue.PopBack()
-		if err != nil {
-			panic(err)
-		}
-		toDeleteKey := lru.revMapping[toDeleteRef]
-		delete(lru.mapping, toDeleteKey)
-		delete(lru.revMapping, toDeleteRef)
+		lru.evictLast()
 	}
 	return val
 }
 
+func (lru *LRU[K, V]) addToCache(key K, val V) {
+	valRef := lru.recencyQueue.AddToFront(key, val)
+	lru.mapping[key] = valRef
+}
+
+func (lru *LRU[K, V]) getFromCache(key K) (val V, ok bool) {
+	if ref, ok := lru.mapping[key]; ok {
+		lru.recencyQueue.MoveToFront(ref)
+		return ref.value, true
+	}
+	return
+}
+
+func (lru *LRU[K, V]) evictLast() {
+	toDeleteRef, err := lru.recencyQueue.PopBack()
+	if err != nil {
+		panic(err)
+	}
+	delete(lru.mapping, toDeleteRef.key)
+}
+
 var EmptyList error = fmt.Errorf("List is empty")
 
-type LinkedList[T any] struct {
-	start, end *listNode[T]
+// Operations on the linked list are not thread safe.
+type LinkedList[K any, T any] struct {
+	start, end *listNode[K, T]
 	size       int
 }
 
-type listNode[T any] struct {
+type listNode[K any, T any] struct {
+	key        K
 	value      T
-	next, prev *listNode[T]
+	next, prev *listNode[K, T]
 }
 
-func NewLinkedList[T any]() *LinkedList[T] {
-	return &LinkedList[T]{
+func NewLinkedList[K any, T any]() *LinkedList[K, T] {
+	return &LinkedList[K, T]{
 		start: nil,
 		end:   nil,
 		size:  0,
 	}
 }
 
-func (ll *LinkedList[T]) AddToFront(val T) *listNode[T] {
-	node := &listNode[T]{value: val, next: nil, prev: nil}
+func (ll *LinkedList[K, T]) AddToFront(key K, val T) *listNode[K, T] {
+	node := &listNode[K, T]{key: key, value: val, next: nil, prev: nil}
 	ll.size++
 	if ll.start != nil {
 		node.next = ll.start
@@ -88,7 +117,7 @@ func (ll *LinkedList[T]) AddToFront(val T) *listNode[T] {
 	return node
 }
 
-func (ll *LinkedList[T]) MoveToFront(node *listNode[T]) {
+func (ll *LinkedList[K, T]) MoveToFront(node *listNode[K, T]) {
 	if node.prev == nil {
 		//Already the first node
 		return
@@ -108,16 +137,17 @@ func (ll *LinkedList[T]) MoveToFront(node *listNode[T]) {
 	ll.start = node
 }
 
-func (ll *LinkedList[T]) PopBack() (*listNode[T], error) {
+func (ll *LinkedList[K, T]) PopBack() (*listNode[K, T], error) {
 	if ll.end == nil {
 		return nil, EmptyList
 	}
 	ll.size--
 	node := ll.end
 	ll.end = ll.end.prev
+	node.prev = nil //Avoiding memory leak
 	return node, nil
 }
 
-func (ll *LinkedList[T]) Size() int {
+func (ll *LinkedList[K, T]) Size() int {
 	return ll.size
 }

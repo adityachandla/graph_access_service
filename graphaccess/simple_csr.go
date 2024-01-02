@@ -9,7 +9,7 @@ import (
 
 	"github.com/adityachandla/graph_access_service/bin_util"
 	"github.com/adityachandla/graph_access_service/caches"
-	s3_util "github.com/adityachandla/graph_access_service/s3util"
+	"github.com/adityachandla/graph_access_service/s3util"
 )
 
 const LRU_SIZE_FILES = 5
@@ -19,13 +19,17 @@ type simpleCsrAccess struct {
 	lru       *caches.LRU[string, simpleCsrRepr]
 }
 
+// This type implements caches.Fetcher interface.
+// It is passed to the LRU cache so that the cache
+// can control when an object is fetched. This struct
+// simply provides the fetching logic.
 type csrFetcher struct {
-	s3Util *s3_util.S3Service
+	s3Util s3util.S3Service
 }
 
 func (f csrFetcher) Fetch(objectName string) simpleCsrRepr {
 	log.Printf("Fetching %s\n", objectName)
-	fileBytes := f.s3Util.Fetch(objectName, s3_util.ByteRangeStart(0))
+	fileBytes := f.s3Util.Fetch(objectName, s3util.ByteRangeStart(0))
 	start := bin_util.ByteToUint(fileBytes[:4])
 	end := bin_util.ByteToUint(fileBytes[4:8])
 	numValues := end - start + 1
@@ -50,22 +54,15 @@ type simpleCsrRepr struct {
 
 func (repr *simpleCsrRepr) getEdges(src, label uint32) []uint32 {
 	index := src - repr.startNodeId
-	edgeStart := int(repr.indices[index])
+	edgeStart := repr.indices[index]
 	//edgeEnd is exclusive
-	var edgeEnd int
+	var edgeEnd uint32
 	if int(index) == len(repr.indices)-1 {
-		edgeEnd = len(repr.edges)
+		edgeEnd = uint32(len(repr.edges))
 	} else {
-		edgeEnd = int(repr.indices[index+1])
+		edgeEnd = repr.indices[index+1]
 	}
-	edges := make([]uint32, 0)
-	//TODO optimize with a binary search
-	for i := edgeStart; i < edgeEnd; i++ {
-		if repr.edges[i].label == label {
-			edges = append(edges, repr.edges[i].dest)
-		}
-	}
-	return edges
+	return getEdgesWithLabel(repr.edges[edgeStart:edgeEnd], label)
 }
 
 func (scsr *simpleCsrAccess) GetNeighbours(src, label uint32,
@@ -74,7 +71,6 @@ func (scsr *simpleCsrAccess) GetNeighbours(src, label uint32,
 		return []uint32{}, IncomingNotImplemented
 	}
 	objectName := scsr.getObjectWithNode(src)
-	log.Printf("The required node is present in %s\n", objectName)
 	csrRepr := scsr.lru.Get(objectName)
 	return csrRepr.getEdges(src, label), nil
 }
@@ -95,12 +91,12 @@ func (scsr *simpleCsrAccess) getObjectWithNode(src uint32) string {
 	panic(fmt.Errorf("%d not found in nodeRanges", src))
 }
 
-func InitializeSimpleCsrAccess(s3 *s3_util.S3Service) *simpleCsrAccess {
+func InitializeSimpleCsrAccess(s3 s3util.S3Service) *simpleCsrAccess {
 	objects := s3.GetFilesInBucket()
 	//For each object, we need to fetch the start and end stored in that file.
 	//Start and end will be the first 8 bytes of the file.
 	nodePaths := make([]nodeRangePath, len(objects))
-	bRange := s3_util.ByteRange(0, 8)
+	bRange := s3util.ByteRange(0, 7)
 	var wg sync.WaitGroup
 	for i := range objects {
 		idx := i
