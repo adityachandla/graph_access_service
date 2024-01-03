@@ -34,7 +34,7 @@ func ByteRange(start, end uint32) byteRange {
 }
 
 func InitializeS3Service(bucketName string) S3Service {
-	cfg, err := config.LoadDefaultConfig(context.TODO())
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("eu-west-1"))
 	if err != nil {
 		panic(fmt.Errorf("Unable to initialize S3: %s", err))
 	}

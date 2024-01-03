@@ -1,4 +1,4 @@
-.PHONY: graph_access_service
+.PHONY: access
 
-graph_access_service:
-	go build .
+access:
+	go build -o access .

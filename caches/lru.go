@@ -144,7 +144,9 @@ func (ll *LinkedList[K, T]) PopBack() (*listNode[K, T], error) {
 	ll.size--
 	node := ll.end
 	ll.end = ll.end.prev
-	node.prev = nil //Avoiding memory leak
+	//These are important to avoid memory leak
+	node.prev = nil
+	node.next = nil
 	return node, nil
 }
 

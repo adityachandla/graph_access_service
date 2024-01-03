@@ -26,6 +26,10 @@ func TestEdgesMiddle(t *testing.T) {
 	if !arrayEqual(res, []uint32{5}) {
 		t.Fail()
 	}
+	res = getEdgesWithLabel([]edge{}, 2)
+	if !arrayEqual(res, []uint32{}) {
+		t.Fail()
+	}
 }
 
 func arrayEqual[T comparable](one, two []T) bool {

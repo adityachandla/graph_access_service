@@ -21,12 +21,11 @@ echo "Created $instance instance with ip=$ip"
 echo "Waiting for 10 seconds for instance initialization"
 sleep 10
 
-rm graph_access_service
-GOARCH=arm64 make graph_access_service
-
+rm -f access
+GOARCH=arm64 make access
 # The strict host checking parameter is to trust new connections
 scp -o StrictHostKeyChecking=accept-new -i $pem_file_path\
-    ./graph_access_service ubuntu@$ip:~/
+    ./access ubuntu@$ip:~/
 ssh -o StrictHostKeyChecking=accept-new -i $pem_file_path\
-    ubuntu@$ip "./graph_access_service --port $port --bucket $bucket | cat >> server.log &"
+    ubuntu@$ip "./access --port $port --bucket $bucket 2> server.log &"
 echo "Started server at $ip:$port"

@@ -114,7 +114,7 @@ func InitializeSimpleCsrAccess(s3 s3util.S3Service) *simpleCsrAccess {
 	slices.SortFunc(nodePaths, nodeCmp)
 	return &simpleCsrAccess{
 		nodePaths: nodePaths,
-		lru:       caches.NewLRU(&csrFetcher{s3}, LRU_SIZE_FILES),
+		lru:       caches.NewLRU[string, simpleCsrRepr](&csrFetcher{s3}, LRU_SIZE_FILES),
 	}
 }
 
