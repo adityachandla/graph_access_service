@@ -17,7 +17,7 @@ func (d *dummyFetcher) Fetch(in int) int {
 
 func TestFetchFromCache(t *testing.T) {
 	fetcher := &dummyFetcher{}
-	lru := caches.NewLRU(fetcher, 4)
+	lru := caches.NewLRU[int, int](fetcher, 4)
 	lru.Get(22)
 	lru.Get(22)
 	checkInvoke(t, fetcher, 1)
@@ -25,7 +25,7 @@ func TestFetchFromCache(t *testing.T) {
 
 func TestEviction(t *testing.T) {
 	fetcher := &dummyFetcher{}
-	lru := caches.NewLRU(fetcher, 2)
+	lru := caches.NewLRU[int, int](fetcher, 2)
 	lru.Get(22)
 	lru.Get(23)
 	lru.Get(24)
@@ -35,7 +35,7 @@ func TestEviction(t *testing.T) {
 
 func TestReuseLast(t *testing.T) {
 	fetcher := &dummyFetcher{}
-	lru := caches.NewLRU(fetcher, 3)
+	lru := caches.NewLRU[int, int](fetcher, 3)
 	lru.Get(22) //invoke
 	lru.Get(23) //invoke
 	lru.Get(24) //invoke
@@ -47,7 +47,7 @@ func TestReuseLast(t *testing.T) {
 
 func TestReuseMiddle(t *testing.T) {
 	fetcher := &dummyFetcher{}
-	lru := caches.NewLRU(fetcher, 3)
+	lru := caches.NewLRU[int, int](fetcher, 3)
 	lru.Get(22) //invoke
 	lru.Get(23) //invoke
 	lru.Get(24) //invoke
