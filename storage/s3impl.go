@@ -1,4 +1,4 @@
-package s3util
+package storage
 
 import (
 	"context"
@@ -11,29 +11,12 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 )
 
-type S3Service interface {
-	Fetch(objectName string, bRange byteRange) []byte
-	GetFilesInBucket() []string
-}
-
 type S3Impl struct {
 	client *s3.Client
 	bucket string
 }
 
-type byteRange struct {
-	start, end uint32
-}
-
-func ByteRangeStart(start uint32) byteRange {
-	return byteRange{start: start, end: 0}
-}
-
-func ByteRange(start, end uint32) byteRange {
-	return byteRange{start: start, end: end}
-}
-
-func InitializeS3Service(bucketName string) S3Service {
+func InitializeS3Service(bucketName string) Fetcher {
 	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("eu-west-1"))
 	if err != nil {
 		panic(fmt.Errorf("Unable to initialize S3: %s", err))
@@ -41,7 +24,7 @@ func InitializeS3Service(bucketName string) S3Service {
 	return &S3Impl{s3.NewFromConfig(cfg), bucketName}
 }
 
-func (service *S3Impl) GetFilesInBucket() []string {
+func (service *S3Impl) ListFiles() []string {
 	log.Printf("Fetching files in bucket %s\n", service.bucket)
 	listRequest := &s3.ListObjectsV2Input{
 		Bucket: aws.String(service.bucket),

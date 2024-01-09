@@ -9,10 +9,10 @@ import (
 
 	"github.com/adityachandla/graph_access_service/bin_util"
 	"github.com/adityachandla/graph_access_service/caches"
-	"github.com/adityachandla/graph_access_service/s3util"
+	"github.com/adityachandla/graph_access_service/storage"
 )
 
-const LRU_SIZE_FILES = 5
+const LRU_SIZE_FILES = 7
 
 type simpleCsrAccess struct {
 	nodePaths []nodeRangePath
@@ -24,12 +24,12 @@ type simpleCsrAccess struct {
 // can control when an object is fetched. This struct
 // simply provides the fetching logic.
 type csrFetcher struct {
-	s3Util s3util.S3Service
+	fetcher storage.Fetcher
 }
 
 func (f csrFetcher) Fetch(objectName string) simpleCsrRepr {
 	log.Printf("Fetching %s\n", objectName)
-	fileBytes := f.s3Util.Fetch(objectName, s3util.ByteRangeStart(0))
+	fileBytes := f.fetcher.Fetch(objectName, storage.ByteRangeStart(0))
 	start := bin_util.ByteToUint(fileBytes[:4])
 	end := bin_util.ByteToUint(fileBytes[4:8])
 	numValues := end - start + 1
@@ -91,19 +91,19 @@ func (scsr *simpleCsrAccess) getObjectWithNode(src uint32) string {
 	panic(fmt.Errorf("%d not found in nodeRanges", src))
 }
 
-func InitializeSimpleCsrAccess(s3 s3util.S3Service) *simpleCsrAccess {
-	objects := s3.GetFilesInBucket()
+func InitializeSimpleCsrAccess(fetcher storage.Fetcher) *simpleCsrAccess {
+	objects := fetcher.ListFiles()
 	//For each object, we need to fetch the start and end stored in that file.
 	//Start and end will be the first 8 bytes of the file.
 	nodePaths := make([]nodeRangePath, len(objects))
-	bRange := s3util.ByteRange(0, 7)
+	bRange := storage.ByteRange(0, 7)
 	var wg sync.WaitGroup
 	for i := range objects {
 		idx := i
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			startEndBytes := s3.Fetch(objects[idx], bRange)
+			startEndBytes := fetcher.Fetch(objects[idx], bRange)
 			nodePaths[idx].start = bin_util.ByteToUint(startEndBytes[:4])
 			nodePaths[idx].end = bin_util.ByteToUint(startEndBytes[4:])
 			nodePaths[idx].objectName = objects[idx]
@@ -114,7 +114,7 @@ func InitializeSimpleCsrAccess(s3 s3util.S3Service) *simpleCsrAccess {
 	slices.SortFunc(nodePaths, nodeCmp)
 	return &simpleCsrAccess{
 		nodePaths: nodePaths,
-		lru:       caches.NewLRU[string, simpleCsrRepr](&csrFetcher{s3}, LRU_SIZE_FILES),
+		lru:       caches.NewLRU[string, simpleCsrRepr](&csrFetcher{fetcher}, LRU_SIZE_FILES),
 	}
 }
 

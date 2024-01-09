@@ -9,13 +9,14 @@ import (
 
 	pb "github.com/adityachandla/graph_access_service/generated"
 	"github.com/adityachandla/graph_access_service/graphaccess"
-	"github.com/adityachandla/graph_access_service/s3util"
+	"github.com/adityachandla/graph_access_service/storage"
 	"google.golang.org/grpc"
 )
 
 //go:generate protoc --go-grpc_out=generated --go_out=generated --go_opt=paths=source_relative  --go-grpc_opt=paths=source_relative graph_access.proto
 var (
 	port   = flag.Int("port", 20301, "The server port")
+	fsType = flag.String("fstype", "s3", "Filesystem type s3/local")
 	bucket = flag.String("bucket", "s3graphtest1", "Path to the s3 bucket")
 )
 
@@ -43,8 +44,15 @@ func (s *server) GetNeighbours(ctx context.Context,
 
 func main() {
 	flag.Parse()
-	s3Util := s3util.InitializeS3Service(*bucket)
-	simple_csr := graphaccess.InitializeSimpleCsrAccess(s3Util)
+	var fetcher storage.Fetcher
+	if *fsType == "s3" {
+		fetcher = storage.InitializeS3Service(*bucket)
+	} else if *fsType == "local" {
+		fetcher = storage.InitializeFsService(*bucket)
+	} else {
+		panic("Invalid filesystem type")
+	}
+	simple_csr := graphaccess.InitializeSimpleCsrAccess(fetcher)
 	server := &server{accessService: simple_csr}
 	log.Println("Initialized the server")
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
