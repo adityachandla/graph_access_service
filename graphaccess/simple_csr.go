@@ -58,6 +58,7 @@ type nodeIndex struct {
 	outgoing, incoming uint32
 }
 
+// TODO make another request type.
 func (repr *simpleCsrRepr) getEdges(req *pb.AccessRequest) []uint32 {
 	edgeStart := repr.getStartEdgeIndex(req)
 	edgeEnd := repr.getEndEdgeIndex(req)
