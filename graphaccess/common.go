@@ -2,6 +2,8 @@ package graphaccess
 
 import (
 	"fmt"
+
+	pb "github.com/adityachandla/graph_access_service/generated"
 )
 
 var IncomingNotImplemented error = fmt.Errorf("Incoming edge query not implemented")
@@ -9,7 +11,7 @@ var IncomingNotImplemented error = fmt.Errorf("Incoming edge query not implement
 const SIZE_INT_BYTES = 4
 
 type GraphAccess interface {
-	GetNeighbours(src, label uint32, incoming bool) ([]uint32, error)
+	GetNeighbours(*pb.AccessRequest) ([]uint32, error)
 }
 
 // Stores the key of the file that

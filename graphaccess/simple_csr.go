@@ -9,6 +9,7 @@ import (
 
 	"github.com/adityachandla/graph_access_service/bin_util"
 	"github.com/adityachandla/graph_access_service/caches"
+	pb "github.com/adityachandla/graph_access_service/generated"
 	"github.com/adityachandla/graph_access_service/storage"
 )
 
@@ -33,46 +34,61 @@ func (f csrFetcher) Fetch(objectName string) simpleCsrRepr {
 	start := bin_util.ByteToUint(fileBytes[:4])
 	end := bin_util.ByteToUint(fileBytes[4:8])
 	numValues := end - start + 1
-	sizeOfIndices := SIZE_INT_BYTES * numValues
-	nodeIndices := bin_util.ByteArrayToUintArray(fileBytes[8 : 8+sizeOfIndices])
+	sizeOfIndices := 2 * SIZE_INT_BYTES * numValues
+	nodeIndices := bin_util.ByteArrayToPairArray(fileBytes[8 : 8+sizeOfIndices])
 	pairs := bin_util.ByteArrayToPairArray(fileBytes[8+sizeOfIndices:])
 	//The memory layout of pair is same as edge so it is safe to
 	//do a typecast.
 	pairPtr := unsafe.Pointer(&pairs)
+	nodeIndexPtr := unsafe.Pointer(&nodeIndices)
 	return simpleCsrRepr{
 		startNodeId: start,
-		indices:     nodeIndices,
+		indices:     *(*[]nodeIndex)(nodeIndexPtr),
 		edges:       *(*[]edge)(pairPtr),
 	}
 }
 
 type simpleCsrRepr struct {
 	startNodeId uint32
-	indices     []uint32
+	indices     []nodeIndex
 	edges       []edge
 }
 
-func (repr *simpleCsrRepr) getEdges(src, label uint32) []uint32 {
-	index := src - repr.startNodeId
-	edgeStart := repr.indices[index]
-	//edgeEnd is exclusive
-	var edgeEnd uint32
-	if int(index) == len(repr.indices)-1 {
-		edgeEnd = uint32(len(repr.edges))
-	} else {
-		edgeEnd = repr.indices[index+1]
-	}
-	return getEdgesWithLabel(repr.edges[edgeStart:edgeEnd], label)
+type nodeIndex struct {
+	outgoing, incoming uint32
 }
 
-func (scsr *simpleCsrAccess) GetNeighbours(src, label uint32,
-	incoming bool) ([]uint32, error) {
-	if incoming {
-		return []uint32{}, IncomingNotImplemented
+func (repr *simpleCsrRepr) getEdges(req *pb.AccessRequest) []uint32 {
+	edgeStart := repr.getStartEdgeIndex(req)
+	edgeEnd := repr.getEndEdgeIndex(req)
+	return getEdgesWithLabel(repr.edges[edgeStart:edgeEnd], req.Label)
+}
+
+func (repr *simpleCsrRepr) getStartEdgeIndex(req *pb.AccessRequest) uint32 {
+	index := req.NodeId - repr.startNodeId
+	if req.Direction == pb.AccessRequest_INCOMING {
+		return repr.indices[index].incoming
 	}
-	objectName := scsr.getObjectWithNode(src)
+	return repr.indices[index].outgoing
+}
+
+func (repr *simpleCsrRepr) getEndEdgeIndex(req *pb.AccessRequest) uint32 {
+	index := req.NodeId - repr.startNodeId
+	if int(index) == len(repr.indices)-1 && req.Direction != pb.AccessRequest_OUTGOING {
+		return uint32(len(repr.edges))
+	}
+	if req.Direction != pb.AccessRequest_OUTGOING {
+		// For incoming or both, we look at the next index.
+		return repr.indices[index+1].outgoing
+	}
+	// For outgoing, we look at the start of incoming edges.
+	return repr.indices[index].incoming
+}
+
+func (scsr *simpleCsrAccess) GetNeighbours(req *pb.AccessRequest) ([]uint32, error) {
+	objectName := scsr.getObjectWithNode(req.NodeId)
 	csrRepr := scsr.lru.Get(objectName)
-	return csrRepr.getEdges(src, label), nil
+	return csrRepr.getEdges(req), nil
 }
 
 func (scsr *simpleCsrAccess) getObjectWithNode(src uint32) string {
@@ -114,7 +130,7 @@ func InitializeSimpleCsrAccess(fetcher storage.Fetcher) *simpleCsrAccess {
 	slices.SortFunc(nodePaths, nodeCmp)
 	return &simpleCsrAccess{
 		nodePaths: nodePaths,
-		lru:       caches.NewLRU[string, simpleCsrRepr](&csrFetcher{fetcher}, LRU_SIZE_FILES),
+		lru:       caches.NewLRU(&csrFetcher{fetcher}, LRU_SIZE_FILES),
 	}
 }
 
