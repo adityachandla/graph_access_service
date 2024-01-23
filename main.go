@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 
@@ -18,6 +19,8 @@ var (
 	port   = flag.Int("port", 20301, "The server port")
 	fsType = flag.String("fstype", "s3", "Filesystem type s3/local")
 	bucket = flag.String("bucket", "s3graphtest1", "Path to the s3 bucket")
+	noLog  = flag.Bool("nolog", false, "Turn off logging")
+	region = flag.String("region", "eu-west-1", "AWS Region")
 )
 
 type server struct {
@@ -25,15 +28,15 @@ type server struct {
 	accessService graphaccess.GraphAccess
 }
 
-func (s *server) GetNeighbours(ctx context.Context,
-	req *pb.AccessRequest) (*pb.AccessResponse, error) {
+func (s *server) GetNeighbours(ctx context.Context, req *pb.AccessRequest) (*pb.AccessResponse, error) {
 	log.Printf("Processing reqest %v\n", req)
-	neighbours, err := s.accessService.GetNeighbours(req)
-	response := &pb.AccessResponse{Neighbours: neighbours}
-	if err != nil && err == graphaccess.IncomingNotImplemented {
-		response.Status = pb.AccessResponse_UNSUPPORTED
-		return response, nil
+	request := graphaccess.Request{
+		Node:      req.NodeId,
+		Label:     req.Label,
+		Direction: mapDirection(req.Direction),
 	}
+	neighbours, err := s.accessService.GetNeighbours(request)
+	response := &pb.AccessResponse{Neighbours: neighbours}
 	if err != nil {
 		response.Status = pb.AccessResponse_SERVER_ERROR
 		return response, err
@@ -42,11 +45,24 @@ func (s *server) GetNeighbours(ctx context.Context,
 	return response, nil
 }
 
+func mapDirection(dir pb.AccessRequest_Direction) graphaccess.Direction {
+	if dir == pb.AccessRequest_OUTGOING {
+		return graphaccess.OUTGOING
+	} else if dir == pb.AccessRequest_INCOMING {
+		return graphaccess.INCOMING
+	}
+	return graphaccess.BOTH
+}
+
 func main() {
 	flag.Parse()
+	if *noLog {
+		log.SetFlags(0)
+		log.SetOutput(io.Discard)
+	}
 	var fetcher storage.Fetcher
 	if *fsType == "s3" {
-		fetcher = storage.InitializeS3Service(*bucket)
+		fetcher = storage.InitializeS3Service(*bucket, *region)
 	} else if *fsType == "local" {
 		fetcher = storage.InitializeFsService(*bucket)
 	} else {

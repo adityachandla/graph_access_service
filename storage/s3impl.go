@@ -16,8 +16,8 @@ type S3Impl struct {
 	bucket string
 }
 
-func InitializeS3Service(bucketName string) Fetcher {
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("eu-west-1"))
+func InitializeS3Service(bucketName, region string) Fetcher {
+	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion(region))
 	if err != nil {
 		panic(fmt.Errorf("Unable to initialize S3: %s", err))
 	}

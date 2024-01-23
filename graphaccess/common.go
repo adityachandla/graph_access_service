@@ -1,18 +1,23 @@
 package graphaccess
 
-import (
-	"fmt"
-
-	pb "github.com/adityachandla/graph_access_service/generated"
-)
-
-var IncomingNotImplemented error = fmt.Errorf("Incoming edge query not implemented")
-
 const SIZE_INT_BYTES = 4
 
 type GraphAccess interface {
-	GetNeighbours(*pb.AccessRequest) ([]uint32, error)
+	GetNeighbours(Request) ([]uint32, error)
 }
+
+type Request struct {
+	Node, Label uint32
+	Direction   Direction
+}
+
+type Direction byte
+
+const (
+	INCOMING Direction = iota
+	OUTGOING
+	BOTH
+)
 
 // Stores the key of the file that
 // stores nodes starting from `start`
