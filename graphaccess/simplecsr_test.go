@@ -7,7 +7,7 @@ import (
 )
 
 func TestGraphReprEdges(t *testing.T) {
-	repr := simpleCsrRepr{
+	repr := csrRepr{
 		startNodeId: 0,
 		indices:     []nodeIndex{{0, 2}, {2, 2}, {2, 4}, {4, 6}},
 		edges:       []edge{{1, 3}, {2, 4}, {1, 5}, {1, 8}, {2, 5}, {2, 8}},

@@ -1,6 +1,6 @@
 package graphaccess
 
-const SIZE_INT_BYTES = 4
+const SizeIntBytes = 4
 
 type GraphAccess interface {
 	GetNeighbours(Request) ([]uint32, error)
