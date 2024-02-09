@@ -27,5 +27,5 @@ GOARCH=arm64 make access
 scp -o StrictHostKeyChecking=accept-new -i $pem_file_path\
     ./access ubuntu@$ip:~/
 ssh -o StrictHostKeyChecking=accept-new -i $pem_file_path\
-    ubuntu@$ip "./access --port $port --bucket $bucket 2> server.log &"
+    ubuntu@$ip "nohup ./access --port $port --bucket $bucket --nolog > server.log 2>&1 </dev/null &"
 echo "Started server at $ip:$port"

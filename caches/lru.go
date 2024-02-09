@@ -33,6 +33,7 @@ func NewLRU[K comparable, V any](fetcher Fetcher[K, V], maxSize int) *LRU[K, V] 
 	}
 }
 
+// Get
 // This function does not lock for the entire duration
 // because the fetch operation might be expensive.
 // As a result, it is possible that two goroutines might
@@ -49,7 +50,7 @@ func (lru *LRU[K, V]) Get(key K) V {
 	val := lru.fetcher.Fetch(key)
 	lru.lock.Lock()
 	// Some other goroutine might have fetched this key in
-	// the mean time.
+	// the meantime.
 	if cached, ok := lru.getFromCache(key); ok {
 		return cached
 	}
