@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/adityachandla/graph_access_service/bin_util"
 	"github.com/adityachandla/graph_access_service/storage"
+	"slices"
 	"sync"
 	"unsafe"
 )
@@ -25,14 +26,24 @@ func NewOffsetCsr(fetcher storage.Fetcher) *OffsetCsr {
 			fetchFileOffset(filename, fetcher, fileOffsetChannel)
 		}(f)
 	}
+	go func() {
+		wg.Wait()
+		close(fileOffsetChannel)
+	}()
 	for offset := range fileOffsetChannel {
 		offsets = append(offsets, offset)
 	}
+	slices.SortFunc(offsets, func(a, b *fileOffset) int {
+		if a.nodeRange.start > b.nodeRange.start {
+			return 1
+		}
+		return -1
+	})
 	return &OffsetCsr{offsets, fetcher}
 }
 
 func fetchFileOffset(filename string, fetcher storage.Fetcher, outputChannel chan<- *fileOffset) {
-	startEndBytes := fetcher.Fetch(filename, storage.BRange(0, 8))
+	startEndBytes := fetcher.Fetch(filename, storage.BRange(0, 7))
 	start := bin_util.ByteToUint(startEndBytes[0:4])
 	end := bin_util.ByteToUint(startEndBytes[4:])
 	nodeRange := nodeRangePath{
@@ -41,7 +52,7 @@ func fetchFileOffset(filename string, fetcher storage.Fetcher, outputChannel cha
 		objectName: filename,
 	}
 	sizeOfOffsets := 2 * SizeIntBytes * (end - start + 1)
-	offsetBytes := fetcher.Fetch(filename, storage.BRange(8, 8+sizeOfOffsets))
+	offsetBytes := fetcher.Fetch(filename, storage.BRange(8, 8+sizeOfOffsets-1))
 	offsetPairs := bin_util.ByteArrayToPairArray(offsetBytes)
 	offsetStruct := &fileOffset{
 		nodeRange: nodeRange,
@@ -98,11 +109,11 @@ func (offset *fileOffset) fetchOffset(req Request) (storage.ByteRange, uint32) {
 	if req.Direction == OUTGOING {
 		start := offset.offsetArr[idx].outgoing
 		numOut := (offset.offsetArr[idx].incoming - start) / (2 * SizeIntBytes)
-		return storage.BRange(start, offset.offsetArr[idx].incoming), numOut
+		return storage.BRange(start, offset.offsetArr[idx].incoming-1), numOut
 	} else if req.Direction == INCOMING {
 		start := offset.offsetArr[idx].incoming
 		if int(idx) < len(offset.offsetArr) {
-			return storage.BRange(start, offset.offsetArr[idx+1].outgoing), 0
+			return storage.BRange(start, offset.offsetArr[idx+1].outgoing-1), 0
 		} else {
 			return storage.BRangeStart(start), 0
 		}
@@ -111,7 +122,7 @@ func (offset *fileOffset) fetchOffset(req Request) (storage.ByteRange, uint32) {
 	start := offset.offsetArr[idx].outgoing
 	numOut := (offset.offsetArr[idx].incoming - start) / (2 * SizeIntBytes)
 	if int(idx) < len(offset.offsetArr) {
-		return storage.BRange(start, offset.offsetArr[idx+1].outgoing), numOut
+		return storage.BRange(start, offset.offsetArr[idx+1].outgoing-1), numOut
 	} else {
 		return storage.BRangeStart(start), numOut
 	}

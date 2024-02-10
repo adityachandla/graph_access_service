@@ -1,6 +1,7 @@
 package storage
 
 type Fetcher interface {
+	// Fetch the byte range. Start and end of byte range are inclusive.
 	Fetch(objectName string, bRange ByteRange) []byte
 	ListFiles() []string
 }

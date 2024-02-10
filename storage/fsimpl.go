@@ -51,7 +51,7 @@ func (fs *FsImpl) Fetch(path string, brange ByteRange) []byte {
 		panic(fmt.Errorf("Unable to open %s %s", path, err))
 	}
 	defer f.Close()
-	f.Seek(0, int(brange.start))
+	f.Seek(int64(brange.start), 0)
 	if brange.end == 0 {
 		res, err := io.ReadAll(f)
 		if err != nil {
