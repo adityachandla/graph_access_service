@@ -2,8 +2,6 @@ package graphaccess
 
 import (
 	"testing"
-
-	pb "github.com/adityachandla/graph_access_service/generated"
 )
 
 func TestGraphReprEdges(t *testing.T) {
@@ -12,13 +10,13 @@ func TestGraphReprEdges(t *testing.T) {
 		indices:     []nodeIndex{{0, 2}, {2, 2}, {2, 4}, {4, 6}},
 		edges:       []edge{{1, 3}, {2, 4}, {1, 5}, {1, 8}, {2, 5}, {2, 8}},
 	}
-	values := repr.getEdges(&pb.AccessRequest{NodeId: 1, Label: 2, Direction: pb.AccessRequest_OUTGOING})
+	values := repr.getEdges(Request{Node: 1, Label: 2, Direction: OUTGOING})
 	assertLength(t, values, 0)
-	values = repr.getEdges(&pb.AccessRequest{NodeId: 2, Label: 1, Direction: pb.AccessRequest_OUTGOING})
+	values = repr.getEdges(Request{Node: 2, Label: 1, Direction: OUTGOING})
 	assertLength(t, values, 2)
-	values = repr.getEdges(&pb.AccessRequest{NodeId: 0, Label: 2, Direction: pb.AccessRequest_OUTGOING})
+	values = repr.getEdges(Request{Node: 0, Label: 2, Direction: OUTGOING})
 	assertLength(t, values, 1)
-	values = repr.getEdges(&pb.AccessRequest{NodeId: 3, Label: 2, Direction: pb.AccessRequest_OUTGOING})
+	values = repr.getEdges(Request{Node: 3, Label: 2, Direction: OUTGOING})
 	assertLength(t, values, 2)
 }
 

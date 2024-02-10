@@ -2,7 +2,7 @@ package caches
 
 import "fmt"
 
-var EmptyList error = fmt.Errorf("List is empty")
+var EmptyList error = fmt.Errorf("List is empty\n")
 
 // linkedList operations are not thread safe.
 type linkedList[K any, T any] struct {
