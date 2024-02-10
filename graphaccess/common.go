@@ -3,7 +3,7 @@ package graphaccess
 const SizeIntBytes = 4
 
 type GraphAccess interface {
-	GetNeighbours(Request) ([]uint32, error)
+	GetNeighbours(Request) []uint32
 }
 
 type Request struct {

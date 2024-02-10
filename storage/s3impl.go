@@ -57,7 +57,7 @@ func (service *S3Impl) getListResponse(
 	return response
 }
 
-func (service *S3Impl) Fetch(objectName string, bRange byteRange) []byte {
+func (service *S3Impl) Fetch(objectName string, bRange ByteRange) []byte {
 	var rangeField string
 	if bRange.end == 0 {
 		rangeField = fmt.Sprintf("bytes=%d-", bRange.start)

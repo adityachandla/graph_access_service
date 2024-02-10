@@ -45,7 +45,7 @@ func (fs *FsImpl) ListFiles() []string {
 	return res
 }
 
-func (fs *FsImpl) Fetch(path string, brange byteRange) []byte {
+func (fs *FsImpl) Fetch(path string, brange ByteRange) []byte {
 	f, err := os.Open(path)
 	if err != nil {
 		panic(fmt.Errorf("Unable to open %s %s", path, err))

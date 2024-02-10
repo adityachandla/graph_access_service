@@ -1,6 +1,7 @@
 package graphaccess
 
 import (
+	"fmt"
 	"github.com/adityachandla/graph_access_service/bin_util"
 	"github.com/adityachandla/graph_access_service/storage"
 	"sync"
@@ -31,7 +32,7 @@ func NewOffsetCsr(fetcher storage.Fetcher) *OffsetCsr {
 }
 
 func fetchFileOffset(filename string, fetcher storage.Fetcher, outputChannel chan<- *fileOffset) {
-	startEndBytes := fetcher.Fetch(filename, storage.ByteRange(0, 8))
+	startEndBytes := fetcher.Fetch(filename, storage.BRange(0, 8))
 	start := bin_util.ByteToUint(startEndBytes[0:4])
 	end := bin_util.ByteToUint(startEndBytes[4:])
 	nodeRange := nodeRangePath{
@@ -39,9 +40,8 @@ func fetchFileOffset(filename string, fetcher storage.Fetcher, outputChannel cha
 		end:        end,
 		objectName: filename,
 	}
-	// TODO check if the size for last file needs to be greater.
-	sizeOfOffsets := 2 * SizeIntBytes * (end - start)
-	offsetBytes := fetcher.Fetch(filename, storage.ByteRange(8, 8+sizeOfOffsets))
+	sizeOfOffsets := 2 * SizeIntBytes * (end - start + 1)
+	offsetBytes := fetcher.Fetch(filename, storage.BRange(8, 8+sizeOfOffsets))
 	offsetPairs := bin_util.ByteArrayToPairArray(offsetBytes)
 	offsetStruct := &fileOffset{
 		nodeRange: nodeRange,
@@ -50,12 +50,38 @@ func fetchFileOffset(filename string, fetcher storage.Fetcher, outputChannel cha
 	outputChannel <- offsetStruct
 }
 
-func (csr *OffsetCsr) GetNeighbours(req Request) (uint32, error) {
-	//If incoming, fetch incoming, if outgoing, fetch outgoing and if both, then
-	//fetch both.
+func (csr *OffsetCsr) GetNeighbours(req Request) []uint32 {
+	file := csr.offsets.find(req.Node)
+	offset, numOut := file.fetchOffset(req)
+
+	resultBytes := csr.fetcher.Fetch(file.nodeRange.objectName, offset)
+	resultPairs := bin_util.ByteArrayToPairArray(resultBytes)
+	resultEdges := *(*[]edge)(unsafe.Pointer(&resultPairs))
+
+	if req.Direction != BOTH {
+		return getEdgesWithLabel(resultEdges, req.Label)
+	}
+	filtered := getEdgesWithLabel(resultEdges[:numOut], req.Label)
+	return append(filtered, getEdgesWithLabel(resultEdges[numOut:], req.Label)...)
 }
 
 type fileOffsets []*fileOffset
+
+func (fo fileOffsets) find(node uint32) *fileOffset {
+	low := 0
+	high := len(fo) - 1
+	for low <= high {
+		mid := low + ((high - low) / 2)
+		if fo[mid].contains(node) {
+			return fo[mid]
+		} else if fo[mid].nodeRange.start > node {
+			high = mid - 1
+		} else {
+			low = mid + 1
+		}
+	}
+	panic(fmt.Errorf("Node %d not found in fileOffsets\n", node))
+}
 
 type fileOffset struct {
 	//nodeRange stores the filename along with the start and end node information.
@@ -63,6 +89,34 @@ type fileOffset struct {
 	offsetArr []nodeOffset
 }
 
+func (offset *fileOffset) contains(node uint32) bool {
+	return node >= offset.nodeRange.start && node <= offset.nodeRange.end
+}
+
+func (offset *fileOffset) fetchOffset(req Request) (storage.ByteRange, uint32) {
+	idx := req.Node - offset.nodeRange.start
+	if req.Direction == OUTGOING {
+		start := offset.offsetArr[idx].outgoing
+		numOut := (offset.offsetArr[idx].incoming - start) / (2 * SizeIntBytes)
+		return storage.BRange(start, offset.offsetArr[idx].incoming), numOut
+	} else if req.Direction == INCOMING {
+		start := offset.offsetArr[idx].incoming
+		if int(idx) < len(offset.offsetArr) {
+			return storage.BRange(start, offset.offsetArr[idx+1].outgoing), 0
+		} else {
+			return storage.BRangeStart(start), 0
+		}
+	}
+	//Both incoming and outgoing
+	start := offset.offsetArr[idx].outgoing
+	numOut := (offset.offsetArr[idx].incoming - start) / (2 * SizeIntBytes)
+	if int(idx) < len(offset.offsetArr) {
+		return storage.BRange(start, offset.offsetArr[idx+1].outgoing), numOut
+	} else {
+		return storage.BRangeStart(start), numOut
+	}
+}
+
 type nodeOffset struct {
-	outgoing, incoming int
+	outgoing, incoming uint32
 }

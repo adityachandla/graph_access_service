@@ -1,18 +1,18 @@
 package storage
 
 type Fetcher interface {
-	Fetch(objectName string, bRange byteRange) []byte
+	Fetch(objectName string, bRange ByteRange) []byte
 	ListFiles() []string
 }
 
-type byteRange struct {
+type ByteRange struct {
 	start, end uint32
 }
 
-func ByteRangeStart(start uint32) byteRange {
-	return byteRange{start: start, end: 0}
+func BRangeStart(start uint32) ByteRange {
+	return ByteRange{start: start, end: 0}
 }
 
-func ByteRange(start, end uint32) byteRange {
-	return byteRange{start: start, end: end}
+func BRange(start, end uint32) ByteRange {
+	return ByteRange{start: start, end: end}
 }

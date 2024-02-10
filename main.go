@@ -16,11 +16,12 @@ import (
 
 //go:generate protoc --go-grpc_out=generated --go_out=generated --go_opt=paths=source_relative  --go-grpc_opt=paths=source_relative graph_access.proto
 var (
-	port   = flag.Int("port", 20301, "The server port")
-	fsType = flag.String("fstype", "s3", "Filesystem type s3/local")
-	bucket = flag.String("bucket", "s3graphtest1", "Path to the s3 bucket")
-	noLog  = flag.Bool("nolog", false, "Turn off logging")
-	region = flag.String("region", "eu-west-1", "AWS Region")
+	port     = flag.Int("port", 20301, "The server port")
+	fsType   = flag.String("fstype", "s3", "Filesystem type s3/local")
+	bucket   = flag.String("bucket", "s3graphtest1", "Path to the s3 bucket")
+	noLog    = flag.Bool("nolog", false, "Turn off logging")
+	region   = flag.String("region", "eu-west-1", "AWS Region")
+	accessor = flag.String("accessor", "offset", "Possible values are: offset/simple")
 )
 
 type server struct {
@@ -28,19 +29,14 @@ type server struct {
 	accessService graphaccess.GraphAccess
 }
 
-func (s *server) GetNeighbours(ctx context.Context, req *pb.AccessRequest) (*pb.AccessResponse, error) {
+func (s *server) GetNeighbours(_ context.Context, req *pb.AccessRequest) (*pb.AccessResponse, error) {
 	log.Printf("Processing reqest %v\n", req)
 	request := graphaccess.Request{
 		Node:      req.NodeId,
 		Label:     req.Label,
 		Direction: mapDirection(req.Direction),
 	}
-	neighbours, err := s.accessService.GetNeighbours(request)
-	response := &pb.AccessResponse{Neighbours: neighbours}
-	if err != nil {
-		response.Status = pb.AccessResponse_SERVER_ERROR
-		return response, err
-	}
+	response := &pb.AccessResponse{Neighbours: s.accessService.GetNeighbours(request)}
 	response.Status = pb.AccessResponse_NO_ERROR
 	return response, nil
 }
@@ -60,25 +56,43 @@ func main() {
 		log.SetFlags(0)
 		log.SetOutput(io.Discard)
 	}
-	var fetcher storage.Fetcher
-	if *fsType == "s3" {
-		fetcher = storage.InitializeS3Service(*bucket, *region)
-	} else if *fsType == "local" {
-		fetcher = storage.InitializeFsService(*bucket)
-	} else {
-		panic("Invalid filesystem type")
-	}
-	simple_csr := graphaccess.InitializeSimpleCsrAccess(fetcher)
-	server := &server{accessService: simple_csr}
-	log.Println("Initialized the server")
+	fetcher := getFetcher()
+	accessService := getAccessService(fetcher)
+	log.Println("Initialized access service")
+	s := &server{accessService: accessService}
+	startServer(s)
+}
+
+func startServer(ser *server) {
+	//Server start
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {
 		panic(err)
 	}
 	s := grpc.NewServer()
-	pb.RegisterGraphAccessServer(s, server)
+	pb.RegisterGraphAccessServer(s, ser)
 	log.Printf("Server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("Unable to serve request: %v", err)
+	}
+}
+
+func getFetcher() storage.Fetcher {
+	if *fsType == "s3" {
+		return storage.InitializeS3Service(*bucket, *region)
+	} else if *fsType == "local" {
+		return storage.InitializeFsService(*bucket)
+	} else {
+		panic("Invalid filesystem type")
+	}
+}
+
+func getAccessService(fetcher storage.Fetcher) graphaccess.GraphAccess {
+	if *accessor == "simple" {
+		return graphaccess.NewSimpleCsr(fetcher)
+	} else if *accessor == "offset" {
+		return graphaccess.NewOffsetCsr(fetcher)
+	} else {
+		panic("Invalid accessor")
 	}
 }

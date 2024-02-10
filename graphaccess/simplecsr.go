@@ -14,7 +14,7 @@ import (
 
 const LruSizeFiles = 7
 
-type csr struct {
+type Csr struct {
 	nodePaths []nodeRangePath
 	lru       *caches.LRU[string, csrRepr]
 	fetcher   storage.Fetcher
@@ -30,12 +30,12 @@ type nodeIndex struct {
 	outgoing, incoming uint32
 }
 
-func InitializeSimpleCsrAccess(fetcher storage.Fetcher) *csr {
+func NewSimpleCsr(fetcher storage.Fetcher) *Csr {
 	objects := fetcher.ListFiles()
 	//For each object, we need to fetch the start and end stored in that file.
 	//Start and end will be the first 8 bytes of the file.
 	nodePaths := make([]nodeRangePath, len(objects))
-	bRange := storage.ByteRange(0, 7)
+	bRange := storage.BRange(0, 7)
 	var wg sync.WaitGroup
 	for i := range objects {
 		idx := i
@@ -49,18 +49,18 @@ func InitializeSimpleCsrAccess(fetcher storage.Fetcher) *csr {
 		}()
 	}
 	wg.Wait()
-	log.Println("Initialized simple csr")
+	log.Println("Initialized simple Csr")
 	slices.SortFunc(nodePaths, nodeCmp)
-	return &csr{
+	return &Csr{
 		nodePaths: nodePaths,
 		lru:       caches.NewLRU[string, csrRepr](LruSizeFiles),
 		fetcher:   fetcher,
 	}
 }
 
-func (scsr *csr) Fetch(objectName string) csrRepr {
+func (scsr *Csr) fetch(objectName string) csrRepr {
 	log.Printf("Fetching %s\n", objectName)
-	fileBytes := scsr.fetcher.Fetch(objectName, storage.ByteRangeStart(0))
+	fileBytes := scsr.fetcher.Fetch(objectName, storage.BRangeStart(0))
 	start := bin_util.ByteToUint(fileBytes[:4])
 	end := bin_util.ByteToUint(fileBytes[4:8])
 	numValues := end - start + 1
@@ -121,17 +121,17 @@ func (repr *csrRepr) getEndEdgeIndex(nodeId uint32, incoming bool) uint32 {
 	return repr.indices[index].incoming
 }
 
-func (scsr *csr) GetNeighbours(req Request) ([]uint32, error) {
+func (scsr *Csr) GetNeighbours(req Request) []uint32 {
 	objectName := scsr.getObjectWithNode(req.Node)
 	csrRepr, found := scsr.lru.Get(objectName)
 	if !found {
-		csrRepr = scsr.Fetch(objectName)
+		csrRepr = scsr.fetch(objectName)
 		scsr.lru.Put(objectName, csrRepr)
 	}
-	return csrRepr.getEdges(req), nil
+	return csrRepr.getEdges(req)
 }
 
-func (scsr *csr) getObjectWithNode(src uint32) string {
+func (scsr *Csr) getObjectWithNode(src uint32) string {
 	start := 0
 	end := len(scsr.nodePaths) - 1
 	for start <= end {
