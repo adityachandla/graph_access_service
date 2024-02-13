@@ -53,6 +53,13 @@ func (lrfu *Lrfu[K, V]) Put(key K, value V) {
 	}
 }
 
+func (lrfu *Lrfu[K, V]) Present(key K) bool {
+	lrfu.lock.Lock()
+	defer lrfu.lock.Unlock()
+	_, ok := lrfu.mapping[key]
+	return ok
+}
+
 func (lrfu *Lrfu[K, V]) Get(key K) (V, bool) {
 	lrfu.lock.Lock()
 	defer lrfu.lock.Unlock()

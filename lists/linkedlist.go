@@ -1,36 +1,36 @@
-package caches
+package lists
 
 import "fmt"
 
 var EmptyList error = fmt.Errorf("List is empty\n")
 
-// linkedList operations are not thread safe.
-type linkedList[K any, T any] struct {
-	sentinel *listNode[K, T]
+// LinkedList operations are not thread safe.
+type LinkedList[K any, T any] struct {
+	sentinel *ListNode[K, T]
 	size     int
 }
 
-type listNode[K any, T any] struct {
-	key        K
-	value      T
-	next, prev *listNode[K, T]
+type ListNode[K any, T any] struct {
+	Key        K
+	Value      T
+	next, prev *ListNode[K, T]
 }
 
-func newLinkedList[K any, T any]() *linkedList[K, T] {
-	sentinel := &listNode[K, T]{}
+func NewLinkedList[K any, T any]() *LinkedList[K, T] {
+	sentinel := &ListNode[K, T]{}
 	sentinel.next = sentinel
 	sentinel.prev = sentinel
-	return &linkedList[K, T]{
+	return &LinkedList[K, T]{
 		sentinel: sentinel,
 		size:     0,
 	}
 }
 
-func (ll *linkedList[K, T]) addToFront(key K, val T) *listNode[K, T] {
+func (ll *LinkedList[K, T]) AddToFront(key K, val T) *ListNode[K, T] {
 	ll.size++
-	node := &listNode[K, T]{
-		key:   key,
-		value: val,
+	node := &ListNode[K, T]{
+		Key:   key,
+		Value: val,
 		next:  ll.sentinel.next,
 		prev:  ll.sentinel,
 	}
@@ -41,11 +41,11 @@ func (ll *linkedList[K, T]) addToFront(key K, val T) *listNode[K, T] {
 	return node
 }
 
-func (ll *linkedList[K, T]) addToBack(key K, val T) *listNode[K, T] {
+func (ll *LinkedList[K, T]) AddToBack(key K, val T) *ListNode[K, T] {
 	ll.size++
-	node := &listNode[K, T]{
-		key:   key,
-		value: val,
+	node := &ListNode[K, T]{
+		Key:   key,
+		Value: val,
 		next:  ll.sentinel,
 		prev:  ll.sentinel.prev,
 	}
@@ -54,7 +54,7 @@ func (ll *linkedList[K, T]) addToBack(key K, val T) *listNode[K, T] {
 	return node
 }
 
-func (ll *linkedList[K, T]) moveToFront(node *listNode[K, T]) {
+func (ll *LinkedList[K, T]) MoveToFront(node *ListNode[K, T]) {
 	if node.prev == ll.sentinel {
 		//Already the first node
 		return
@@ -71,7 +71,7 @@ func (ll *linkedList[K, T]) moveToFront(node *listNode[K, T]) {
 	ll.sentinel.next = node
 }
 
-func (ll *linkedList[K, T]) remove(node *listNode[K, T]) {
+func (ll *LinkedList[K, T]) Remove(node *ListNode[K, T]) {
 	ll.size--
 	node.prev.next = node.next
 	node.next.prev = node.prev
@@ -79,7 +79,7 @@ func (ll *linkedList[K, T]) remove(node *listNode[K, T]) {
 	node.prev = nil
 }
 
-func (ll *linkedList[K, T]) popBack() (*listNode[K, T], error) {
+func (ll *LinkedList[K, T]) PopBack() (*ListNode[K, T], error) {
 	if ll.size == 0 {
 		return nil, EmptyList
 	}
@@ -94,7 +94,7 @@ func (ll *linkedList[K, T]) popBack() (*listNode[K, T], error) {
 	return node, nil
 }
 
-func (ll *linkedList[K, T]) popFront() (*listNode[K, T], error) {
+func (ll *LinkedList[K, T]) PopFront() (*ListNode[K, T], error) {
 	if ll.size == 0 {
 		return nil, EmptyList
 	}
@@ -110,6 +110,6 @@ func (ll *linkedList[K, T]) popFront() (*listNode[K, T], error) {
 	return node, nil
 }
 
-func (ll *linkedList[K, T]) Len() int {
+func (ll *LinkedList[K, T]) Len() int {
 	return ll.size
 }

@@ -127,6 +127,15 @@ func (offset *fileOffset) fetchOffset(req Request) (storage.ByteRange, uint32) {
 		return storage.BRangeStart(start), numOut
 	}
 }
+func (offset *fileOffset) fetchOffsetAllEdges(node uint32) storage.ByteRange {
+	idx := node - offset.nodeRange.start
+	start := offset.offsetArr[idx].outgoing
+	if int(idx) < len(offset.offsetArr) {
+		return storage.BRange(start, offset.offsetArr[idx+1].outgoing-1)
+	} else {
+		return storage.BRangeStart(start)
+	}
+}
 
 type nodeOffset struct {
 	outgoing, incoming uint32
