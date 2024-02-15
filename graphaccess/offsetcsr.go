@@ -112,7 +112,7 @@ func (offset *fileOffset) fetchOffset(req Request) (storage.ByteRange, uint32) {
 		return storage.BRange(start, offset.offsetArr[idx].incoming-1), numOut
 	} else if req.Direction == INCOMING {
 		start := offset.offsetArr[idx].incoming
-		if int(idx) < len(offset.offsetArr) {
+		if int(idx) < len(offset.offsetArr)-1 {
 			return storage.BRange(start, offset.offsetArr[idx+1].outgoing-1), 0
 		} else {
 			return storage.BRangeStart(start), 0
@@ -121,7 +121,7 @@ func (offset *fileOffset) fetchOffset(req Request) (storage.ByteRange, uint32) {
 	//Both incoming and outgoing
 	start := offset.offsetArr[idx].outgoing
 	numOut := (offset.offsetArr[idx].incoming - start) / (2 * SizeIntBytes)
-	if int(idx) < len(offset.offsetArr) {
+	if int(idx) < len(offset.offsetArr)-1 {
 		return storage.BRange(start, offset.offsetArr[idx+1].outgoing-1), numOut
 	} else {
 		return storage.BRangeStart(start), numOut
@@ -130,7 +130,7 @@ func (offset *fileOffset) fetchOffset(req Request) (storage.ByteRange, uint32) {
 func (offset *fileOffset) fetchOffsetAllEdges(node uint32) storage.ByteRange {
 	idx := node - offset.nodeRange.start
 	start := offset.offsetArr[idx].outgoing
-	if int(idx) < len(offset.offsetArr) {
+	if int(idx) < len(offset.offsetArr)-1 {
 		return storage.BRange(start, offset.offsetArr[idx+1].outgoing-1)
 	} else {
 		return storage.BRangeStart(start)

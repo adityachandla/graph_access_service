@@ -21,7 +21,7 @@ var (
 	bucket   = flag.String("bucket", "s3graphtest1", "Path to the s3 bucket")
 	noLog    = flag.Bool("nolog", false, "Turn off logging")
 	region   = flag.String("region", "eu-west-1", "AWS Region")
-	accessor = flag.String("accessor", "offset", "Possible values are: offset/simple")
+	accessor = flag.String("accessor", "prefetch", "Possible values are: prefetch/offset/simple")
 )
 
 type server struct {
@@ -92,6 +92,8 @@ func getAccessService(fetcher storage.Fetcher) graphaccess.GraphAccess {
 		return graphaccess.NewSimpleCsr(fetcher)
 	} else if *accessor == "offset" {
 		return graphaccess.NewOffsetCsr(fetcher)
+	} else if *accessor == "prefetch" {
+		return graphaccess.NewPrefetchCsr(fetcher)
 	} else {
 		panic("Invalid accessor")
 	}
