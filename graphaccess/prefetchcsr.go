@@ -52,13 +52,18 @@ func (node *Prefetcher) prefetchRoutine() {
 		if !ok {
 			continue
 		}
+		node.nodeInFlight = val
+		node.edgesFuture = newFuture[[]edge]()
 		file := node.offsetCsr.offsets.find(val)
 		byteRange := file.fetchOffsetAllEdges(val)
 
 		resultBytes := node.offsetCsr.fetcher.Fetch(file.nodeRange.objectName, byteRange)
 		resultPairs := bin_util.ByteArrayToPairArray(resultBytes)
 		resultEdges := *(*[]edge)(unsafe.Pointer(&resultPairs))
+		node.edgesFuture.put(resultEdges)
 		node.prefetchCache.Put(val, resultEdges)
+		node.nodeInFlight = 0
+		node.edgesFuture = nil
 	}
 }
 

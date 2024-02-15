@@ -6,7 +6,7 @@ set -e
 instance="c7gn.xlarge"
 stack_name="GraphInstanceStack"
 port="20301"
-bucket="s3graphtest1"
+bucket="s3graphtest10"
 pem_file_path="~/Downloads/graphDbIreland.pem"
 
 aws cloudformation create-stack \
