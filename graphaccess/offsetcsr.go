@@ -76,6 +76,10 @@ func (csr *OffsetCsr) GetNeighbours(req Request) []uint32 {
 	return append(filtered, getEdgesWithLabel(resultEdges[numOut:], req.Label)...)
 }
 
+func (csr *OffsetCsr) GetStats() string {
+	return ""
+}
+
 type fileOffsets []*fileOffset
 
 func (fo fileOffsets) find(node uint32) *fileOffset {

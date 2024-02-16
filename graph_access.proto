@@ -26,6 +26,13 @@ message AccessResponse {
     }
 }
 
+message Stats {
+    string stats = 1;
+}
+
+message StatsRequest{}
+
 service GraphAccess {
     rpc GetNeighbours(AccessRequest) returns (AccessResponse) {};
+    rpc GetStats(StatsRequest) returns (Stats) {};
 }

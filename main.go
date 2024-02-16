@@ -41,6 +41,10 @@ func (s *server) GetNeighbours(_ context.Context, req *pb.AccessRequest) (*pb.Ac
 	return response, nil
 }
 
+func (s *server) GetStats(_ context.Context, _ *pb.StatsRequest) (*pb.Stats, error) {
+	return &pb.Stats{Stats: s.accessService.GetStats()}, nil
+}
+
 func mapDirection(dir pb.AccessRequest_Direction) graphaccess.Direction {
 	if dir == pb.AccessRequest_OUTGOING {
 		return graphaccess.OUTGOING

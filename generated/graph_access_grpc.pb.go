@@ -19,6 +19,7 @@ const _ = grpc.SupportPackageIsVersion7
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type GraphAccessClient interface {
 	GetNeighbours(ctx context.Context, in *AccessRequest, opts ...grpc.CallOption) (*AccessResponse, error)
+	GetStats(ctx context.Context, in *StatsRequest, opts ...grpc.CallOption) (*Stats, error)
 }
 
 type graphAccessClient struct {
@@ -38,11 +39,21 @@ func (c *graphAccessClient) GetNeighbours(ctx context.Context, in *AccessRequest
 	return out, nil
 }
 
+func (c *graphAccessClient) GetStats(ctx context.Context, in *StatsRequest, opts ...grpc.CallOption) (*Stats, error) {
+	out := new(Stats)
+	err := c.cc.Invoke(ctx, "/graph_access_service.GraphAccess/GetStats", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GraphAccessServer is the server API for GraphAccess service.
 // All implementations must embed UnimplementedGraphAccessServer
 // for forward compatibility
 type GraphAccessServer interface {
 	GetNeighbours(context.Context, *AccessRequest) (*AccessResponse, error)
+	GetStats(context.Context, *StatsRequest) (*Stats, error)
 	mustEmbedUnimplementedGraphAccessServer()
 }
 
@@ -52,6 +63,9 @@ type UnimplementedGraphAccessServer struct {
 
 func (UnimplementedGraphAccessServer) GetNeighbours(context.Context, *AccessRequest) (*AccessResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetNeighbours not implemented")
+}
+func (UnimplementedGraphAccessServer) GetStats(context.Context, *StatsRequest) (*Stats, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetStats not implemented")
 }
 func (UnimplementedGraphAccessServer) mustEmbedUnimplementedGraphAccessServer() {}
 
@@ -84,6 +98,24 @@ func _GraphAccess_GetNeighbours_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _GraphAccess_GetStats_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StatsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GraphAccessServer).GetStats(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/graph_access_service.GraphAccess/GetStats",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GraphAccessServer).GetStats(ctx, req.(*StatsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // GraphAccess_ServiceDesc is the grpc.ServiceDesc for GraphAccess service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -94,6 +126,10 @@ var GraphAccess_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetNeighbours",
 			Handler:    _GraphAccess_GetNeighbours_Handler,
+		},
+		{
+			MethodName: "GetStats",
+			Handler:    _GraphAccess_GetStats_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

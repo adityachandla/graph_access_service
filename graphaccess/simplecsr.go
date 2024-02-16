@@ -1,10 +1,12 @@
 package graphaccess
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"slices"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"github.com/adityachandla/graph_access_service/bin_util"
@@ -18,6 +20,23 @@ type Csr struct {
 	nodePaths []nodeRangePath
 	lru       *caches.LRU[string, csrRepr]
 	fetcher   storage.Fetcher
+	stats     CsrStats
+}
+
+type CsrStats struct {
+	CacheHits atomic.Uint32
+	S3Fetches atomic.Uint32
+}
+
+func (s *CsrStats) convertToString() string {
+	res := make(map[string]uint32)
+	res["cacheHits"] = s.CacheHits.Load()
+	res["S3Fetches"] = s.S3Fetches.Load()
+	resultBytes, err := json.Marshal(res)
+	if err != nil {
+		panic(err)
+	}
+	return string(resultBytes)
 }
 
 type csrRepr struct {
@@ -56,6 +75,23 @@ func NewSimpleCsr(fetcher storage.Fetcher) *Csr {
 		lru:       caches.NewLRU[string, csrRepr](LruSizeFiles),
 		fetcher:   fetcher,
 	}
+}
+
+func (scsr *Csr) GetNeighbours(req Request) []uint32 {
+	objectName := scsr.getObjectWithNode(req.Node)
+	csrRepr, found := scsr.lru.Get(objectName)
+	if !found {
+		scsr.stats.S3Fetches.Add(1)
+		csrRepr = scsr.fetch(objectName)
+		scsr.lru.Put(objectName, csrRepr)
+	} else {
+		scsr.stats.CacheHits.Add(1)
+	}
+	return csrRepr.getEdges(req)
+}
+
+func (scsr *Csr) GetStats() string {
+	return scsr.stats.convertToString()
 }
 
 func (scsr *Csr) fetch(objectName string) csrRepr {
@@ -119,16 +155,6 @@ func (repr *csrRepr) getEndEdgeIndex(nodeId uint32, incoming bool) uint32 {
 	}
 	// For outgoing, we look at the start of incoming edges.
 	return repr.indices[index].incoming
-}
-
-func (scsr *Csr) GetNeighbours(req Request) []uint32 {
-	objectName := scsr.getObjectWithNode(req.Node)
-	csrRepr, found := scsr.lru.Get(objectName)
-	if !found {
-		csrRepr = scsr.fetch(objectName)
-		scsr.lru.Put(objectName, csrRepr)
-	}
-	return csrRepr.getEdges(req)
 }
 
 func (scsr *Csr) getObjectWithNode(src uint32) string {

@@ -4,6 +4,7 @@ const SizeIntBytes = 4
 
 type GraphAccess interface {
 	GetNeighbours(Request) []uint32
+	GetStats() string
 }
 
 type Request struct {
