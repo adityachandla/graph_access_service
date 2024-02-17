@@ -76,6 +76,15 @@ func (csr *OffsetCsr) GetNeighbours(req Request) []uint32 {
 	return append(filtered, getEdgesWithLabel(resultEdges[numOut:], req.Label)...)
 }
 
+func (csr *OffsetCsr) fetchAllEdges(node uint32) []edge {
+	file := csr.offsets.find(node)
+	byteRange := file.fetchOffsetAllEdges(node)
+
+	resultBytes := csr.fetcher.Fetch(file.nodeRange.objectName, byteRange)
+	resultPairs := bin_util.ByteArrayToPairArray(resultBytes)
+	return *(*[]edge)(unsafe.Pointer(&resultPairs))
+}
+
 func (csr *OffsetCsr) GetStats() string {
 	return ""
 }
