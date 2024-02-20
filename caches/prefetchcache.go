@@ -6,7 +6,8 @@ import (
 )
 
 type PrefetchCache[K comparable, V any] struct {
-	elementMap  map[K]*lists.ListNode[K, V]
+	elementMap map[K]*lists.ListNode[K, V]
+	//TODO replace the linked list with circular list.
 	list        *lists.LinkedList[K, V]
 	numElements int
 	maxSize     int

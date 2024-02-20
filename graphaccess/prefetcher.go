@@ -38,10 +38,8 @@ func (pf *Prefetcher) write(result []uint32) {
 
 func (pf *Prefetcher) prefetchRoutine(index int) {
 	for {
-		val, ok := pf.prefetchQueue.Read()
-		if !ok {
-			continue
-		}
+		val := pf.prefetchQueue.Read()
+
 		pf.locks[index].Lock()
 		pf.inFlightIds[index] = val
 		pf.edgesFuture[index] = newFuture[[]edge]()

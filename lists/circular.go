@@ -5,35 +5,38 @@ import (
 )
 
 type CircularQueue[T any] struct {
-	arr    []T
-	front  int
-	back   int
-	isFull bool
-	lock   sync.Mutex
+	arr       []T
+	front     int
+	back      int
+	isFull    bool
+	lock      sync.Mutex
+	writeCond sync.Cond
 }
 
 func NewCircularQueue[T any](size int) *CircularQueue[T] {
-	return &CircularQueue[T]{
+	cq := &CircularQueue[T]{
 		arr:    make([]T, size),
 		front:  0,
 		back:   0,
 		isFull: false,
 	}
+	cq.writeCond.L = &cq.lock
+	return cq
 }
 
-func (cq *CircularQueue[T]) Read() (val T, ok bool) {
+func (cq *CircularQueue[T]) Read() T {
 	cq.lock.Lock()
 	defer cq.lock.Unlock()
 
 	if cq.front == cq.back && !cq.isFull {
-		return val, false
+		cq.writeCond.Wait()
 	}
-	val = cq.arr[cq.front]
+	val := cq.arr[cq.front]
 	cq.front = (cq.front + 1) % len(cq.arr)
 	if cq.isFull {
 		cq.isFull = false
 	}
-	return val, true
+	return val
 }
 
 func (cq *CircularQueue[T]) Write(newElements []T) {
@@ -56,4 +59,5 @@ func (cq *CircularQueue[T]) writeOrOverwrite(element T) {
 	if cq.back == cq.front {
 		cq.isFull = true
 	}
+	cq.writeCond.Signal()
 }
