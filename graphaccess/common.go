@@ -3,11 +3,18 @@ package graphaccess
 const SizeIntBytes = 4
 
 type GraphAccess interface {
-	StartQuery() int
+	StartQuery(Algo) int
 	GetNeighbours(Request) []uint32
 	EndQuery(int)
 	GetStats() string
 }
+
+type Algo byte
+
+const (
+	BFS Algo = iota
+	DFS
+)
 
 type Request struct {
 	Node, Label uint32

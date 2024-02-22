@@ -77,7 +77,7 @@ func NewSimpleCsr(fetcher storage.Fetcher) *Csr {
 	}
 }
 
-func (scsr *Csr) StartQuery() int {
+func (scsr *Csr) StartQuery(Algo) int {
 	//This implementation does not do anything about the queries.
 	return 1
 }

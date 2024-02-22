@@ -45,10 +45,10 @@ func NewPrefetchCsr(fetcher storage.Fetcher) *PrefetchCsr {
 	}
 }
 
-func (p *PrefetchCsr) StartQuery() int {
+func (p *PrefetchCsr) StartQuery(algo Algo) int {
 	val := p.queryIdCounter
 	p.queryIdCounter++
-	p.prefetchers[val] = NewPrefetcher(NumFetchers, 100, p.offsetCsr.fetchAllEdges)
+	p.prefetchers[val] = NewPrefetcher(algo, NumFetchers, 100, p.offsetCsr.fetchAllEdges)
 	return val
 }
 

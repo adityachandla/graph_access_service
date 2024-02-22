@@ -12,21 +12,25 @@ type Prefetcher struct {
 	locks       []sync.Mutex
 
 	prefetchCache *caches.PrefetchCache[uint32, []edge]
-	prefetchQueue *lists.DFSQueue[uint32]
+	prefetchQueue lists.Queue[uint32]
 	//This function will fetch all edges for a node.
 	fetcher     func(uint32) []edge
 	quitChannel chan struct{}
 }
 
-func NewPrefetcher(numThreads int, prefetchCacheSize int, fetcher func(uint32) []edge) *Prefetcher {
+func NewPrefetcher(algorithm Algo, numThreads int, prefetchCacheSize int, fetcher func(uint32) []edge) *Prefetcher {
 	pf := &Prefetcher{
 		inFlightIds:   make([]uint32, numThreads),
 		edgesFuture:   make([]*future[[]edge], numThreads),
 		locks:         make([]sync.Mutex, numThreads),
 		prefetchCache: caches.NewPrefetchCache[uint32, []edge](prefetchCacheSize),
-		prefetchQueue: lists.NewDFSQueue[uint32](100),
 		fetcher:       fetcher,
 		quitChannel:   make(chan struct{}),
+	}
+	if algorithm == DFS {
+		pf.prefetchQueue = lists.NewDFSQueue[uint32](100)
+	} else {
+		pf.prefetchQueue = lists.NewBFSQueue[uint32](100)
 	}
 	for i := 0; i < numThreads; i++ {
 		go pf.prefetchRoutine(i)

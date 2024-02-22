@@ -61,7 +61,7 @@ func fetchFileOffset(filename string, fetcher storage.Fetcher, outputChannel cha
 	outputChannel <- offsetStruct
 }
 
-func (csr *OffsetCsr) StartQuery() int {
+func (csr *OffsetCsr) StartQuery(Algo) int {
 	//This implementation does not do anything about the queries.
 	return 1
 }

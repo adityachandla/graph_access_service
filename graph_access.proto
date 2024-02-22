@@ -33,7 +33,13 @@ message Stats {
 
 message StatsRequest{}
 
-message StartQueryRequest{}
+message StartQueryRequest{
+    Algo algorithm= 2;
+    enum Algo {
+        BFS = 0;
+        DFS = 1;
+    }
+}
 message StartQueryResponse {
     int32 queryId = 1;
 }

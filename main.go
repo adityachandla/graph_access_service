@@ -29,8 +29,15 @@ type server struct {
 	accessService graphaccess.GraphAccess
 }
 
-func (s *server) StartQuery(_ context.Context, _ *pb.StartQueryRequest) (*pb.StartQueryResponse, error) {
-	return &pb.StartQueryResponse{QueryId: int32(s.accessService.StartQuery())}, nil
+func (s *server) StartQuery(_ context.Context, req *pb.StartQueryRequest) (*pb.StartQueryResponse, error) {
+	var algo graphaccess.Algo
+	if req.Algorithm == pb.StartQueryRequest_BFS {
+		algo = graphaccess.BFS
+	} else {
+		algo = graphaccess.DFS
+	}
+	id := s.accessService.StartQuery(algo)
+	return &pb.StartQueryResponse{QueryId: int32(id)}, nil
 }
 
 func (s *server) GetNeighbours(_ context.Context, req *pb.AccessRequest) (*pb.AccessResponse, error) {
