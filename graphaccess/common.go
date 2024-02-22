@@ -3,13 +3,16 @@ package graphaccess
 const SizeIntBytes = 4
 
 type GraphAccess interface {
+	StartQuery() int
 	GetNeighbours(Request) []uint32
+	EndQuery(int)
 	GetStats() string
 }
 
 type Request struct {
 	Node, Label uint32
 	Direction   Direction
+	QueryId     int
 }
 
 type Direction byte

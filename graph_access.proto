@@ -8,6 +8,7 @@ message AccessRequest {
     uint32 nodeId=1; // Source node id
     uint32 label=2;  // Edge label
     Direction direction=3;// Is the edge outgoing or incoming
+    int32 queryId=4;
     enum Direction {
         INCOMING=0;
         OUTGOING=1;
@@ -32,7 +33,20 @@ message Stats {
 
 message StatsRequest{}
 
+message StartQueryRequest{}
+message StartQueryResponse {
+    int32 queryId = 1;
+}
+
+message EndQueryResponse{}
+
+message EndQueryRequest {
+    int32 queryId = 1;
+}
+
 service GraphAccess {
+    rpc StartQuery(StartQueryRequest) returns (StartQueryResponse){};
     rpc GetNeighbours(AccessRequest) returns (AccessResponse) {};
+    rpc EndQuery(EndQueryRequest) returns (EndQueryResponse) {};
     rpc GetStats(StatsRequest) returns (Stats) {};
 }

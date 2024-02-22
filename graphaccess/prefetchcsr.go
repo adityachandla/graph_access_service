@@ -10,10 +10,11 @@ import (
 const NumFetchers = 5
 
 type PrefetchCsr struct {
-	offsetCsr  *OffsetCsr
-	prefetcher *Prefetcher
-	cache      *caches.Lrfu[Request, []uint32]
-	stats      PrefetchStats
+	offsetCsr      *OffsetCsr
+	prefetchers    map[int]*Prefetcher
+	cache          *caches.Lrfu[Request, []uint32]
+	queryIdCounter int
+	stats          PrefetchStats
 }
 
 type PrefetchStats struct {
@@ -37,12 +38,18 @@ func (s *PrefetchStats) convertToString() string {
 }
 
 func NewPrefetchCsr(fetcher storage.Fetcher) *PrefetchCsr {
-	p := &PrefetchCsr{
-		offsetCsr: NewOffsetCsr(fetcher),
-		cache:     caches.NewLrfuCache[Request, []uint32](1000, 0.2),
+	return &PrefetchCsr{
+		offsetCsr:      NewOffsetCsr(fetcher),
+		cache:          caches.NewLrfuCache[Request, []uint32](1000, 0.2),
+		queryIdCounter: 1,
 	}
-	p.prefetcher = NewPrefetcher(NumFetchers, 100, p.offsetCsr.fetchAllEdges)
-	return p
+}
+
+func (p *PrefetchCsr) StartQuery() int {
+	val := p.queryIdCounter
+	p.queryIdCounter++
+	p.prefetchers[val] = NewPrefetcher(NumFetchers, 100, p.offsetCsr.fetchAllEdges)
+	return val
 }
 
 func (p *PrefetchCsr) GetNeighbours(req Request) []uint32 {
@@ -50,8 +57,15 @@ func (p *PrefetchCsr) GetNeighbours(req Request) []uint32 {
 	if !p.cache.Present(req) {
 		p.cache.Put(req, response)
 	}
-	p.prefetcher.write(response)
+	p.prefetchers[req.QueryId].write(response)
 	return response
+}
+
+func (p *PrefetchCsr) EndQuery(id int) {
+	if pf, ok := p.prefetchers[id]; ok {
+		pf.StopPrefetcher()
+		delete(p.prefetchers, id)
+	}
 }
 
 func (p *PrefetchCsr) GetStats() string {
@@ -66,13 +80,13 @@ func (p *PrefetchCsr) fetchResponse(req Request) []uint32 {
 		return response
 	}
 	//Then check the Prefetcher cache
-	edges, found := p.prefetcher.getFromPrefetchCache(req.Node)
+	edges, found := p.prefetchers[req.QueryId].getFromPrefetchCache(req.Node)
 	if found {
 		p.stats.PrefetcherHits.Add(1)
 		return filterResponse(req, edges, p.offsetCsr.offsets)
 	}
 	//Then check the in-flight queue
-	edgesFuture, found := p.prefetcher.getFromInFlightQueue(req.Node)
+	edgesFuture, found := p.prefetchers[req.QueryId].getFromInFlightQueue(req.Node)
 	if found {
 		p.stats.InFlightHits.Add(1)
 		return filterResponse(req, edgesFuture.get(), p.offsetCsr.offsets)
@@ -89,6 +103,7 @@ func filterResponse(req Request, edges []edge, offsets fileOffsets) []uint32 {
 	} else if req.Direction == INCOMING {
 		return getEdgesWithLabel(edges[numOutgoing:], req.Label)
 	}
+	//Both
 	outgoing := getEdgesWithLabel(edges[:numOutgoing], req.Label)
 	return append(outgoing, getEdgesWithLabel(edges[numOutgoing:], req.Label)...)
 }

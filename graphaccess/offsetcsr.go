@@ -61,6 +61,11 @@ func fetchFileOffset(filename string, fetcher storage.Fetcher, outputChannel cha
 	outputChannel <- offsetStruct
 }
 
+func (csr *OffsetCsr) StartQuery() int {
+	//This implementation does not do anything about the queries.
+	return 1
+}
+
 func (csr *OffsetCsr) GetNeighbours(req Request) []uint32 {
 	file := csr.offsets.find(req.Node)
 	offset, numOut := file.fetchOffset(req)
@@ -74,6 +79,9 @@ func (csr *OffsetCsr) GetNeighbours(req Request) []uint32 {
 	}
 	filtered := getEdgesWithLabel(resultEdges[:numOut], req.Label)
 	return append(filtered, getEdgesWithLabel(resultEdges[numOut:], req.Label)...)
+}
+
+func (csr *OffsetCsr) EndQuery(int) {
 }
 
 func (csr *OffsetCsr) fetchAllEdges(node uint32) []edge {

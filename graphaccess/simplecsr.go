@@ -77,6 +77,11 @@ func NewSimpleCsr(fetcher storage.Fetcher) *Csr {
 	}
 }
 
+func (scsr *Csr) StartQuery() int {
+	//This implementation does not do anything about the queries.
+	return 1
+}
+
 func (scsr *Csr) GetNeighbours(req Request) []uint32 {
 	objectName := scsr.getObjectWithNode(req.Node)
 	csrRepr, found := scsr.lru.Get(objectName)
@@ -88,6 +93,9 @@ func (scsr *Csr) GetNeighbours(req Request) []uint32 {
 		scsr.stats.CacheHits.Add(1)
 	}
 	return csrRepr.getEdges(req)
+}
+
+func (scsr *Csr) EndQuery(int) {
 }
 
 func (scsr *Csr) GetStats() string {

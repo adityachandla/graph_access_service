@@ -29,16 +29,26 @@ type server struct {
 	accessService graphaccess.GraphAccess
 }
 
+func (s *server) StartQuery(_ context.Context, _ *pb.StartQueryRequest) (*pb.StartQueryResponse, error) {
+	return &pb.StartQueryResponse{QueryId: int32(s.accessService.StartQuery())}, nil
+}
+
 func (s *server) GetNeighbours(_ context.Context, req *pb.AccessRequest) (*pb.AccessResponse, error) {
 	log.Printf("Processing reqest %v\n", req)
 	request := graphaccess.Request{
 		Node:      req.NodeId,
 		Label:     req.Label,
 		Direction: mapDirection(req.Direction),
+		QueryId:   int(req.QueryId),
 	}
 	response := &pb.AccessResponse{Neighbours: s.accessService.GetNeighbours(request)}
 	response.Status = pb.AccessResponse_NO_ERROR
 	return response, nil
+}
+
+func (s *server) EndQuery(_ context.Context, end *pb.EndQueryRequest) (*pb.EndQueryResponse, error) {
+	s.accessService.EndQuery(int(end.QueryId))
+	return &pb.EndQueryResponse{}, nil
 }
 
 func (s *server) GetStats(_ context.Context, _ *pb.StatsRequest) (*pb.Stats, error) {

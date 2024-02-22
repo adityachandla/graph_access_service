@@ -18,7 +18,9 @@ const _ = grpc.SupportPackageIsVersion7
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type GraphAccessClient interface {
+	StartQuery(ctx context.Context, in *StartQueryRequest, opts ...grpc.CallOption) (*StartQueryResponse, error)
 	GetNeighbours(ctx context.Context, in *AccessRequest, opts ...grpc.CallOption) (*AccessResponse, error)
+	EndQuery(ctx context.Context, in *EndQueryRequest, opts ...grpc.CallOption) (*EndQueryResponse, error)
 	GetStats(ctx context.Context, in *StatsRequest, opts ...grpc.CallOption) (*Stats, error)
 }
 
@@ -30,9 +32,27 @@ func NewGraphAccessClient(cc grpc.ClientConnInterface) GraphAccessClient {
 	return &graphAccessClient{cc}
 }
 
+func (c *graphAccessClient) StartQuery(ctx context.Context, in *StartQueryRequest, opts ...grpc.CallOption) (*StartQueryResponse, error) {
+	out := new(StartQueryResponse)
+	err := c.cc.Invoke(ctx, "/graph_access_service.GraphAccess/StartQuery", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *graphAccessClient) GetNeighbours(ctx context.Context, in *AccessRequest, opts ...grpc.CallOption) (*AccessResponse, error) {
 	out := new(AccessResponse)
 	err := c.cc.Invoke(ctx, "/graph_access_service.GraphAccess/GetNeighbours", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *graphAccessClient) EndQuery(ctx context.Context, in *EndQueryRequest, opts ...grpc.CallOption) (*EndQueryResponse, error) {
+	out := new(EndQueryResponse)
+	err := c.cc.Invoke(ctx, "/graph_access_service.GraphAccess/EndQuery", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +72,9 @@ func (c *graphAccessClient) GetStats(ctx context.Context, in *StatsRequest, opts
 // All implementations must embed UnimplementedGraphAccessServer
 // for forward compatibility
 type GraphAccessServer interface {
+	StartQuery(context.Context, *StartQueryRequest) (*StartQueryResponse, error)
 	GetNeighbours(context.Context, *AccessRequest) (*AccessResponse, error)
+	EndQuery(context.Context, *EndQueryRequest) (*EndQueryResponse, error)
 	GetStats(context.Context, *StatsRequest) (*Stats, error)
 	mustEmbedUnimplementedGraphAccessServer()
 }
@@ -61,8 +83,14 @@ type GraphAccessServer interface {
 type UnimplementedGraphAccessServer struct {
 }
 
+func (UnimplementedGraphAccessServer) StartQuery(context.Context, *StartQueryRequest) (*StartQueryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method StartQuery not implemented")
+}
 func (UnimplementedGraphAccessServer) GetNeighbours(context.Context, *AccessRequest) (*AccessResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetNeighbours not implemented")
+}
+func (UnimplementedGraphAccessServer) EndQuery(context.Context, *EndQueryRequest) (*EndQueryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method EndQuery not implemented")
 }
 func (UnimplementedGraphAccessServer) GetStats(context.Context, *StatsRequest) (*Stats, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStats not implemented")
@@ -80,6 +108,24 @@ func RegisterGraphAccessServer(s grpc.ServiceRegistrar, srv GraphAccessServer) {
 	s.RegisterService(&GraphAccess_ServiceDesc, srv)
 }
 
+func _GraphAccess_StartQuery_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartQueryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GraphAccessServer).StartQuery(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/graph_access_service.GraphAccess/StartQuery",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GraphAccessServer).StartQuery(ctx, req.(*StartQueryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _GraphAccess_GetNeighbours_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AccessRequest)
 	if err := dec(in); err != nil {
@@ -94,6 +140,24 @@ func _GraphAccess_GetNeighbours_Handler(srv interface{}, ctx context.Context, de
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(GraphAccessServer).GetNeighbours(ctx, req.(*AccessRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _GraphAccess_EndQuery_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EndQueryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(GraphAccessServer).EndQuery(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/graph_access_service.GraphAccess/EndQuery",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(GraphAccessServer).EndQuery(ctx, req.(*EndQueryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -124,8 +188,16 @@ var GraphAccess_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*GraphAccessServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "StartQuery",
+			Handler:    _GraphAccess_StartQuery_Handler,
+		},
+		{
 			MethodName: "GetNeighbours",
 			Handler:    _GraphAccess_GetNeighbours_Handler,
+		},
+		{
+			MethodName: "EndQuery",
+			Handler:    _GraphAccess_EndQuery_Handler,
 		},
 		{
 			MethodName: "GetStats",

@@ -12,9 +12,10 @@ type Prefetcher struct {
 	locks       []sync.Mutex
 
 	prefetchCache *caches.PrefetchCache[uint32, []edge]
-	prefetchQueue *lists.CircularQueue[uint32]
+	prefetchQueue *lists.DFSQueue[uint32]
 	//This function will fetch all edges for a node.
-	fetcher func(uint32) []edge
+	fetcher     func(uint32) []edge
+	quitChannel chan struct{}
 }
 
 func NewPrefetcher(numThreads int, prefetchCacheSize int, fetcher func(uint32) []edge) *Prefetcher {
@@ -23,8 +24,9 @@ func NewPrefetcher(numThreads int, prefetchCacheSize int, fetcher func(uint32) [
 		edgesFuture:   make([]*future[[]edge], numThreads),
 		locks:         make([]sync.Mutex, numThreads),
 		prefetchCache: caches.NewPrefetchCache[uint32, []edge](prefetchCacheSize),
-		prefetchQueue: lists.NewCircularQueue[uint32](100),
+		prefetchQueue: lists.NewDFSQueue[uint32](100),
 		fetcher:       fetcher,
+		quitChannel:   make(chan struct{}),
 	}
 	for i := 0; i < numThreads; i++ {
 		go pf.prefetchRoutine(i)
@@ -32,8 +34,14 @@ func NewPrefetcher(numThreads int, prefetchCacheSize int, fetcher func(uint32) [
 	return pf
 }
 
+func (pf *Prefetcher) StopPrefetcher() {
+	for i := 0; i < len(pf.inFlightIds); i++ {
+		pf.quitChannel <- struct{}{}
+	}
+}
+
 func (pf *Prefetcher) write(result []uint32) {
-	pf.prefetchQueue.Write(result)
+	pf.prefetchQueue.WriteAll(result)
 }
 
 func (pf *Prefetcher) prefetchRoutine(index int) {
@@ -54,6 +62,12 @@ func (pf *Prefetcher) prefetchRoutine(index int) {
 		pf.locks[index].Unlock()
 
 		pf.prefetchCache.Put(val, resultEdges)
+
+		select {
+		case <-pf.quitChannel:
+			return
+		default:
+		}
 	}
 }
 
