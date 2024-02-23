@@ -42,9 +42,7 @@ func NewPrefetcher(algorithm Algo, fetcher func(uint32) []edge) *Prefetcher {
 }
 
 func (pf *Prefetcher) StopPrefetcher() {
-	for i := 0; i < len(pf.inFlightIds); i++ {
-		pf.quitChannel <- struct{}{}
-	}
+	pf.prefetchQueue.Delete()
 }
 
 func (pf *Prefetcher) write(result []uint32) {
@@ -53,7 +51,10 @@ func (pf *Prefetcher) write(result []uint32) {
 
 func (pf *Prefetcher) prefetchRoutine(index int) {
 	for {
-		val := pf.prefetchQueue.Read()
+		val, deleted := pf.prefetchQueue.Read()
+		if deleted {
+			return
+		}
 
 		pf.locks[index].Lock()
 		pf.inFlightIds[index] = val
@@ -70,11 +71,6 @@ func (pf *Prefetcher) prefetchRoutine(index int) {
 
 		pf.prefetchCache.Put(val, resultEdges)
 
-		select {
-		case <-pf.quitChannel:
-			return
-		default:
-		}
 	}
 }
 

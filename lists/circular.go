@@ -5,8 +5,9 @@ import (
 )
 
 type Queue[T any] interface {
-	Read() T
+	Read() (T, bool)
 	WriteAll([]T)
+	Delete()
 }
 
 // The DFSQueue behaves somewhat like a stack. The only
@@ -17,31 +18,47 @@ type DFSQueue[T any] struct {
 	front     int
 	back      int
 	isFull    bool
+	deleted   bool
 	lock      sync.Mutex
 	writeCond sync.Cond
 }
 
 func NewDFSQueue[T any](size int) *DFSQueue[T] {
 	cq := &DFSQueue[T]{
-		arr:    make([]T, size),
-		back:   0, //Push and pop from the back.
-		front:  0,
-		isFull: false,
+		arr:     make([]T, size),
+		back:    0, //Push and pop from the back.
+		front:   0,
+		isFull:  false,
+		deleted: false,
 	}
 	cq.writeCond.L = &cq.lock
 	return cq
 }
 
-func (cq *DFSQueue[T]) Read() T {
+func (cq *DFSQueue[T]) Read() (val T, deleted bool) {
 	cq.lock.Lock()
 	defer cq.lock.Unlock()
 
+	if cq.deleted {
+		return val, true
+	}
 	if cq.back == cq.front && !cq.isFull {
 		cq.writeCond.Wait()
 	}
+	if cq.deleted {
+		return val, true
+	}
 	cq.back = ((cq.back - 1) + len(cq.arr)) % len(cq.arr)
-	val := cq.arr[cq.back]
-	return val
+	val = cq.arr[cq.back]
+	return val, false
+}
+
+func (cq *DFSQueue[T]) Delete() {
+	cq.lock.Lock()
+	defer cq.lock.Unlock()
+
+	cq.deleted = true
+	cq.writeCond.Broadcast()
 }
 
 // WriteAll will overwrite the elements that are at the end of the
@@ -71,34 +88,42 @@ type BFSQueue[T any] struct {
 	front     int
 	back      int
 	isFull    bool
+	deleted   bool
 	lock      sync.Mutex
 	writeCond sync.Cond
 }
 
 func NewBFSQueue[T any](size int) *BFSQueue[T] {
 	cq := &BFSQueue[T]{
-		arr:    make([]T, size),
-		front:  0,
-		back:   0,
-		isFull: false,
+		arr:     make([]T, size),
+		front:   0,
+		back:    0,
+		isFull:  false,
+		deleted: false,
 	}
 	cq.writeCond.L = &cq.lock
 	return cq
 }
 
-func (cq *BFSQueue[T]) Read() T {
+func (cq *BFSQueue[T]) Read() (val T, deleted bool) {
 	cq.lock.Lock()
 	defer cq.lock.Unlock()
 
+	if cq.deleted {
+		return val, true
+	}
 	if cq.front == cq.back && !cq.isFull {
 		cq.writeCond.Wait()
 	}
-	val := cq.arr[cq.front]
+	if cq.deleted {
+		return val, true
+	}
+	val = cq.arr[cq.front]
 	cq.front = (cq.front + 1) % len(cq.arr)
 	if cq.isFull {
 		cq.isFull = false
 	}
-	return val
+	return val, false
 }
 
 func (cq *BFSQueue[T]) WriteAll(vals []T) {
@@ -106,10 +131,18 @@ func (cq *BFSQueue[T]) WriteAll(vals []T) {
 	defer cq.lock.Unlock()
 
 	idx := 0
-	for !cq.isFull {
+	for !cq.isFull && idx < len(vals) {
 		cq.write(vals[idx])
 		idx++
 	}
+}
+
+func (cq *BFSQueue[T]) Delete() {
+	cq.lock.Lock()
+	defer cq.lock.Unlock()
+
+	cq.deleted = true
+	cq.writeCond.Broadcast()
 }
 
 func (cq *BFSQueue[T]) write(val T) {

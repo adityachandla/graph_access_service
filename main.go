@@ -7,6 +7,10 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 
 	pb "github.com/adityachandla/graph_access_service/generated"
 	"github.com/adityachandla/graph_access_service/graphaccess"
@@ -95,10 +99,25 @@ func startServer(ser *server) {
 	}
 	s := grpc.NewServer()
 	pb.RegisterGraphAccessServer(s, ser)
+
+	//Graceful shutdown stuff
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		<-sigCh
+		s.GracefulStop()
+		defer wg.Done()
+	}()
+
+	// Start listening to requests
 	log.Printf("Server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("Unable to serve request: %v", err)
 	}
+	wg.Wait()
+	log.Println("Graceful shutdown")
 }
 
 func getFetcher() storage.Fetcher {
