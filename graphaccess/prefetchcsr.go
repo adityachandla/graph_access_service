@@ -7,8 +7,6 @@ import (
 	"sync/atomic"
 )
 
-const NumFetchers = 5
-
 type PrefetchCsr struct {
 	offsetCsr      *OffsetCsr
 	prefetchers    map[int]*Prefetcher
@@ -42,13 +40,14 @@ func NewPrefetchCsr(fetcher storage.Fetcher) *PrefetchCsr {
 		offsetCsr:      NewOffsetCsr(fetcher),
 		cache:          caches.NewLrfuCache[Request, []uint32](1000, 0.2),
 		queryIdCounter: 1,
+		prefetchers:    make(map[int]*Prefetcher),
 	}
 }
 
 func (p *PrefetchCsr) StartQuery(algo Algo) int {
 	val := p.queryIdCounter
 	p.queryIdCounter++
-	p.prefetchers[val] = NewPrefetcher(algo, NumFetchers, 100, p.offsetCsr.fetchAllEdges)
+	p.prefetchers[val] = NewPrefetcher(algo, p.offsetCsr.fetchAllEdges)
 	return val
 }
 

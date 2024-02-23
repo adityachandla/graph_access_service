@@ -6,6 +6,9 @@ import (
 	"sync"
 )
 
+const NumPrefetchers = 5
+const CacheSize = 100
+
 type Prefetcher struct {
 	inFlightIds []uint32
 	edgesFuture []*future[[]edge]
@@ -18,12 +21,12 @@ type Prefetcher struct {
 	quitChannel chan struct{}
 }
 
-func NewPrefetcher(algorithm Algo, numThreads int, prefetchCacheSize int, fetcher func(uint32) []edge) *Prefetcher {
+func NewPrefetcher(algorithm Algo, fetcher func(uint32) []edge) *Prefetcher {
 	pf := &Prefetcher{
-		inFlightIds:   make([]uint32, numThreads),
-		edgesFuture:   make([]*future[[]edge], numThreads),
-		locks:         make([]sync.Mutex, numThreads),
-		prefetchCache: caches.NewPrefetchCache[uint32, []edge](prefetchCacheSize),
+		inFlightIds:   make([]uint32, NumPrefetchers),
+		edgesFuture:   make([]*future[[]edge], NumPrefetchers),
+		locks:         make([]sync.Mutex, NumPrefetchers),
+		prefetchCache: caches.NewPrefetchCache[uint32, []edge](CacheSize),
 		fetcher:       fetcher,
 		quitChannel:   make(chan struct{}),
 	}
@@ -32,7 +35,7 @@ func NewPrefetcher(algorithm Algo, numThreads int, prefetchCacheSize int, fetche
 	} else {
 		pf.prefetchQueue = lists.NewBFSQueue[uint32](100)
 	}
-	for i := 0; i < numThreads; i++ {
+	for i := 0; i < NumPrefetchers; i++ {
 		go pf.prefetchRoutine(i)
 	}
 	return pf

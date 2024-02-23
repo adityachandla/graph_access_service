@@ -37,6 +37,7 @@ func (s *server) StartQuery(_ context.Context, req *pb.StartQueryRequest) (*pb.S
 		algo = graphaccess.DFS
 	}
 	id := s.accessService.StartQuery(algo)
+	log.Printf("Started query %d\n", id)
 	return &pb.StartQueryResponse{QueryId: int32(id)}, nil
 }
 
@@ -50,11 +51,13 @@ func (s *server) GetNeighbours(_ context.Context, req *pb.AccessRequest) (*pb.Ac
 	}
 	response := &pb.AccessResponse{Neighbours: s.accessService.GetNeighbours(request)}
 	response.Status = pb.AccessResponse_NO_ERROR
+	log.Printf("Processed reqest %v\n", req)
 	return response, nil
 }
 
 func (s *server) EndQuery(_ context.Context, end *pb.EndQueryRequest) (*pb.EndQueryResponse, error) {
 	s.accessService.EndQuery(int(end.QueryId))
+	log.Printf("Ended query %d\n", end.QueryId)
 	return &pb.EndQueryResponse{}, nil
 }
 
