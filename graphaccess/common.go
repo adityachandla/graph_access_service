@@ -4,7 +4,7 @@ const SizeIntBytes = 4
 
 type GraphAccess interface {
 	StartQuery(Algo) int
-	GetNeighbours(Request) []uint32
+	GetNeighbours(Request, int) []uint32
 	EndQuery(int)
 	GetStats() string
 }
@@ -19,7 +19,6 @@ const (
 type Request struct {
 	Node, Label uint32
 	Direction   Direction
-	QueryId     int
 }
 
 type Direction byte

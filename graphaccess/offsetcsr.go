@@ -66,7 +66,7 @@ func (csr *OffsetCsr) StartQuery(Algo) int {
 	return 1
 }
 
-func (csr *OffsetCsr) GetNeighbours(req Request) []uint32 {
+func (csr *OffsetCsr) GetNeighbours(req Request, _ int) []uint32 {
 	file := csr.offsets.find(req.Node)
 	offset, numOut := file.fetchOffset(req)
 

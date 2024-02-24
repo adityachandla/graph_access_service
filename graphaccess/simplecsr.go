@@ -82,7 +82,7 @@ func (scsr *Csr) StartQuery(Algo) int {
 	return 1
 }
 
-func (scsr *Csr) GetNeighbours(req Request) []uint32 {
+func (scsr *Csr) GetNeighbours(req Request, _ int) []uint32 {
 	objectName := scsr.getObjectWithNode(req.Node)
 	csrRepr, found := scsr.lru.Get(objectName)
 	if !found {

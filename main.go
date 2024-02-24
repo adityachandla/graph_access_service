@@ -51,9 +51,8 @@ func (s *server) GetNeighbours(_ context.Context, req *pb.AccessRequest) (*pb.Ac
 		Node:      req.NodeId,
 		Label:     req.Label,
 		Direction: mapDirection(req.Direction),
-		QueryId:   int(req.QueryId),
 	}
-	response := &pb.AccessResponse{Neighbours: s.accessService.GetNeighbours(request)}
+	response := &pb.AccessResponse{Neighbours: s.accessService.GetNeighbours(request, int(req.QueryId))}
 	response.Status = pb.AccessResponse_NO_ERROR
 	log.Printf("Processed reqest %v\n", req)
 	return response, nil
