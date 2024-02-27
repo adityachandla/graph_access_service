@@ -70,27 +70,23 @@ func (csr *OffsetCsr) GetNeighbours(req Request, _ int) []uint32 {
 	file := csr.offsets.find(req.Node)
 	offset, numOut := file.fetchOffset(req)
 
-	resultBytes := csr.fetcher.Fetch(file.nodeRange.objectName, offset)
-	resultPairs := bin_util.ByteArrayToPairArray(resultBytes)
-	resultEdges := *(*[]edge)(unsafe.Pointer(&resultPairs))
+	result := edgeList(csr.fetcher.Fetch(file.nodeRange.objectName, offset))
 
 	if req.Direction != BOTH {
-		return getEdgesWithLabel(resultEdges, req.Label)
+		return getEdgesWithLabelBytes(result, req.Label)
 	}
-	filtered := getEdgesWithLabel(resultEdges[:numOut], req.Label)
-	return append(filtered, getEdgesWithLabel(resultEdges[numOut:], req.Label)...)
+	filtered := getEdgesWithLabelBytes(result.SliceEnd(int(numOut)), req.Label)
+	return append(filtered, getEdgesWithLabelBytes(result.SliceStart(int(numOut)), req.Label)...)
 }
 
 func (csr *OffsetCsr) EndQuery(int) {
 }
 
-func (csr *OffsetCsr) fetchAllEdges(node uint32) []edge {
+func (csr *OffsetCsr) fetchAllEdges(node uint32) edgeList {
 	file := csr.offsets.find(node)
 	byteRange := file.fetchOffsetAllEdges(node)
 
-	resultBytes := csr.fetcher.Fetch(file.nodeRange.objectName, byteRange)
-	resultPairs := bin_util.ByteArrayToPairArray(resultBytes)
-	return *(*[]edge)(unsafe.Pointer(&resultPairs))
+	return csr.fetcher.Fetch(file.nodeRange.objectName, byteRange)
 }
 
 func (csr *OffsetCsr) GetStats() string {

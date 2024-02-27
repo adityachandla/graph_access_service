@@ -101,14 +101,14 @@ func (p *PrefetchCsr) fetchResponse(req Request, queryId int) []uint32 {
 	return p.offsetCsr.GetNeighbours(req, queryId)
 }
 
-func filterResponse(req Request, edges []edge, offsets fileOffsets) []uint32 {
+func filterResponse(req Request, edges edgeList, offsets fileOffsets) []uint32 {
 	_, numOutgoing := offsets.find(req.Node).fetchOffset(req)
 	if req.Direction == OUTGOING {
-		return getEdgesWithLabel(edges[:numOutgoing], req.Label)
+		return getEdgesWithLabelBytes(edges.SliceEnd(int(numOutgoing)), req.Label)
 	} else if req.Direction == INCOMING {
-		return getEdgesWithLabel(edges[numOutgoing:], req.Label)
+		return getEdgesWithLabelBytes(edges.SliceStart(int(numOutgoing)), req.Label)
 	}
 	//Both
-	outgoing := getEdgesWithLabel(edges[:numOutgoing], req.Label)
-	return append(outgoing, getEdgesWithLabel(edges[numOutgoing:], req.Label)...)
+	outgoing := getEdgesWithLabelBytes(edges.SliceEnd(int(numOutgoing)), req.Label)
+	return append(outgoing, getEdgesWithLabelBytes(edges.SliceStart(int(numOutgoing)), req.Label)...)
 }

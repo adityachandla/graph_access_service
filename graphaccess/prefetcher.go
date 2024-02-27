@@ -11,22 +11,22 @@ const CacheSize = 100
 
 type Prefetcher struct {
 	inFlightIds []uint32
-	edgesFuture []*future[[]edge]
+	edgesFuture []*future[edgeList]
 	locks       []sync.Mutex
 
-	prefetchCache *caches.PrefetchCache[uint32, []edge]
+	prefetchCache *caches.PrefetchCache[uint32, edgeList]
 	prefetchQueue lists.Queue[uint32]
 	//This function will fetch all edges for a node.
-	fetcher     func(uint32) []edge
+	fetcher     func(uint32) edgeList
 	quitChannel chan struct{}
 }
 
-func NewPrefetcher(algorithm Algo, fetcher func(uint32) []edge) *Prefetcher {
+func NewPrefetcher(algorithm Algo, fetcher func(uint32) edgeList) *Prefetcher {
 	pf := &Prefetcher{
 		inFlightIds:   make([]uint32, NumPrefetchers),
-		edgesFuture:   make([]*future[[]edge], NumPrefetchers),
+		edgesFuture:   make([]*future[edgeList], NumPrefetchers),
 		locks:         make([]sync.Mutex, NumPrefetchers),
-		prefetchCache: caches.NewPrefetchCache[uint32, []edge](CacheSize),
+		prefetchCache: caches.NewPrefetchCache[uint32, edgeList](CacheSize),
 		fetcher:       fetcher,
 		quitChannel:   make(chan struct{}),
 	}
@@ -58,7 +58,7 @@ func (pf *Prefetcher) prefetchRoutine(index int) {
 
 		pf.locks[index].Lock()
 		pf.inFlightIds[index] = val
-		pf.edgesFuture[index] = newFuture[[]edge]()
+		pf.edgesFuture[index] = newFuture[edgeList]()
 		pf.locks[index].Unlock()
 
 		resultEdges := pf.fetcher(val)
@@ -74,11 +74,11 @@ func (pf *Prefetcher) prefetchRoutine(index int) {
 	}
 }
 
-func (pf *Prefetcher) getFromPrefetchCache(node uint32) ([]edge, bool) {
+func (pf *Prefetcher) getFromPrefetchCache(node uint32) (edgeList, bool) {
 	return pf.prefetchCache.Get(node)
 }
 
-func (pf *Prefetcher) getFromInFlightQueue(node uint32) (*future[[]edge], bool) {
+func (pf *Prefetcher) getFromInFlightQueue(node uint32) (*future[edgeList], bool) {
 	for i := 0; i < len(pf.inFlightIds); i++ {
 		pf.locks[i].Lock()
 		if pf.inFlightIds[i] == node {

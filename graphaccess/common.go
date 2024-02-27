@@ -47,12 +47,12 @@ type edge struct {
 
 // This function gets all the destinations with a particular label in the
 // slice.
-func getEdgesWithLabel(edgeList []edge, label uint32) []uint32 {
+func getEdgesWithLabelBytes(edges edgeList, label uint32) []uint32 {
 	low := 0
-	high := len(edgeList) - 1
+	high := edges.Len() - 1
 	for low <= high {
 		mid := low + (high-low)/2
-		if edgeList[mid].label <= label {
+		if edges.LabelAt(mid) <= label {
 			low = mid + 1
 		} else {
 			high = mid - 1
@@ -60,10 +60,10 @@ func getEdgesWithLabel(edgeList []edge, label uint32) []uint32 {
 	}
 	labelEnd := high
 	low = 0
-	high = len(edgeList) - 1
+	high = edges.Len() - 1
 	for low <= high {
 		mid := low + (high-low)/2
-		if edgeList[mid].label < label {
+		if edges.LabelAt(mid) < label {
 			low = mid + 1
 		} else {
 			high = mid - 1
@@ -72,7 +72,37 @@ func getEdgesWithLabel(edgeList []edge, label uint32) []uint32 {
 	labelStart := low
 	res := make([]uint32, 0, labelEnd-labelStart+1)
 	for i := labelStart; i <= labelEnd; i++ {
-		res = append(res, edgeList[i].dest)
+		res = append(res, edges.NodeAt(i))
+	}
+	return res
+}
+
+func getEdgesWithLabel(edges []edge, label uint32) []uint32 {
+	low := 0
+	high := len(edges) - 1
+	for low <= high {
+		mid := low + (high-low)/2
+		if edges[mid].label <= label {
+			low = mid + 1
+		} else {
+			high = mid - 1
+		}
+	}
+	labelEnd := high
+	low = 0
+	high = len(edges) - 1
+	for low <= high {
+		mid := low + (high-low)/2
+		if edges[mid].label < label {
+			low = mid + 1
+		} else {
+			high = mid - 1
+		}
+	}
+	labelStart := low
+	res := make([]uint32, 0, labelEnd-labelStart+1)
+	for i := labelStart; i <= labelEnd; i++ {
+		res = append(res, edges[i].dest)
 	}
 	return res
 }

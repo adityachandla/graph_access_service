@@ -9,6 +9,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"runtime/pprof"
 	"sync"
 	"syscall"
 
@@ -100,18 +101,22 @@ func startServer(ser *server) {
 	pb.RegisterGraphAccessServer(s, ser)
 
 	//Graceful shutdown stuff
+	f, _ := os.Create("edgeListProfile.pprof")
+	pprof.StartCPUProfile(f)
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
 		<-sigCh
+		pprof.StopCPUProfile()
+		f.Close()
 		s.GracefulStop()
 		defer wg.Done()
 	}()
 
 	// Start listening to requests
-	log.Printf("Server listening at %v", lis.Addr())
+	fmt.Printf("Server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("Unable to serve request: %v", err)
 	}

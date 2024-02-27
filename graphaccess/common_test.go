@@ -1,45 +1,25 @@
 package graphaccess
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-func TestEdgesMiddle(t *testing.T) {
-	edgeList := []edge{{1, 2}, {1, 4}, {2, 3}, {2, 4}, {2, 5}, {3, 1}, {3, 3}}
-	res := getEdgesWithLabel(edgeList[0:], 2)
-	if !arrayEqual(res, []uint32{3, 4, 5}) {
-		t.Fail()
+func edgesToBytes(edges []edge) edgeList {
+	l := make([]byte, 0, len(edges)*8)
+	for _, e := range edges {
+		l = append(l, byte(e.label), 0, 0, 0)
+		l = append(l, byte(e.dest), 0, 0, 0)
 	}
-	res = getEdgesWithLabel(edgeList[0:4], 2)
-	if !arrayEqual(res, []uint32{3, 4}) {
-		t.Fail()
-	}
-	res = getEdgesWithLabel(edgeList[3:4], 2)
-	if !arrayEqual(res, []uint32{4}) {
-		t.Fail()
-	}
-	res = getEdgesWithLabel(edgeList[0:3], 2)
-	if !arrayEqual(res, []uint32{3}) {
-		t.Fail()
-	}
-	res = getEdgesWithLabel(edgeList[4:], 2)
-	if !arrayEqual(res, []uint32{5}) {
-		t.Fail()
-	}
-	res = getEdgesWithLabel([]edge{}, 2)
-	if !arrayEqual(res, []uint32{}) {
-		t.Fail()
-	}
+	return l
 }
 
-func arrayEqual[T comparable](one, two []T) bool {
-	if len(one) != len(two) {
-		return false
-	}
-	for i := 0; i < len(one); i++ {
-		if one[i] != two[i] {
-			return false
-		}
-	}
-	return true
+func TestEdgesMiddle(t *testing.T) {
+	edges := []edge{{1, 2}, {1, 4}, {2, 3}, {2, 4}, {2, 5}, {3, 1}, {3, 3}}
+	edgesBytes := edgesToBytes(edges)
+	assert.Equal(t, []uint32{3, 4, 5}, getEdgesWithLabelBytes(edgesBytes, 2))
+	assert.Equal(t, []uint32{3, 4}, getEdgesWithLabelBytes(edgesBytes.SliceEnd(4), 2))
+	assert.Equal(t, []uint32{3}, getEdgesWithLabelBytes(edgesBytes.SliceEnd(3), 2))
+	assert.Equal(t, []uint32{5}, getEdgesWithLabelBytes(edgesBytes.SliceStart(4), 2))
+	assert.Equal(t, []uint32{}, getEdgesWithLabelBytes([]byte{}, 2))
 }
