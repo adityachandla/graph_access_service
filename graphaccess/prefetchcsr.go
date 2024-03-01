@@ -2,10 +2,11 @@ package graphaccess
 
 import (
 	"encoding/json"
-	"github.com/adityachandla/graph_access_service/caches"
-	"github.com/adityachandla/graph_access_service/storage"
 	"sync"
 	"sync/atomic"
+
+	"github.com/adityachandla/graph_access_service/caches"
+	"github.com/adityachandla/graph_access_service/storage"
 )
 
 type PrefetchCsr struct {
@@ -47,10 +48,12 @@ func NewPrefetchCsr(fetcher storage.Fetcher) *PrefetchCsr {
 }
 
 func (p *PrefetchCsr) StartQuery(algo Algo) int {
+	pf := NewPrefetcher(algo, p.offsetCsr.fetchAllEdges)
+
+	p.mapLock.Lock()
 	val := p.queryIdCounter
 	p.queryIdCounter++
-	p.mapLock.Lock()
-	p.prefetchers[val] = NewPrefetcher(algo, p.offsetCsr.fetchAllEdges)
+	p.prefetchers[val] = pf
 	p.mapLock.Unlock()
 	return val
 }

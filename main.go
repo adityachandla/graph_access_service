@@ -24,7 +24,7 @@ var (
 	fsType   = flag.String("fstype", "s3", "Filesystem type s3/local")
 	bucket   = flag.String("bucket", "s3graphtest1", "Path to the s3 bucket")
 	noLog    = flag.Bool("nolog", false, "Turn off logging")
-	region   = flag.String("region", "eu-west-1", "AWS Region")
+	region   = flag.String("region", "us-east-1", "AWS Region")
 	accessor = flag.String("accessor", "prefetch", "Possible values are: prefetch/offset/simple")
 )
 
